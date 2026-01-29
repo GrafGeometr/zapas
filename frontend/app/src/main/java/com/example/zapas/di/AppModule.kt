@@ -6,7 +6,8 @@ import com.example.zapas.data.api.AuthInterceptor
 import com.example.zapas.data.local.TokenManager
 import com.example.zapas.data.local.storage.KeyValueStorage
 import com.example.zapas.data.local.storage.SharedPreferencesStorage
-import com.example.zapas.data.repository.AuthRepository
+import com.example.zapas.data.repository.AuthRepositoryImpl
+import com.example.zapas.domain.repository.AuthRepository
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -42,7 +43,7 @@ object AppModule {
         authApi: AuthApiService,
         tokenManager: TokenManager
     ): AuthRepository {
-        return AuthRepository(authApi, tokenManager)
+        return AuthRepositoryImpl(authApi, tokenManager)
     }
 
 

@@ -11,17 +11,35 @@ import com.example.zapas.ui.presentation.screens.auth.RegisterScreen
 import com.example.zapas.ui.presentation.screens.auth.RegisterStep1Screen
 import com.example.zapas.ui.presentation.screens.auth.RegisterStep2Screen
 import com.example.zapas.ui.presentation.screens.main.MainScreen
+import com.example.zapas.ui.presentation.screens.splash.SplashScreen
 
 
 @Composable
 fun ZapasNavGraph(
-    startDestination: String = Destinations.LOGIN
+    startDestination: String = Destinations.SPLASH
 ) {
     val navController = rememberNavController()
 
     NavHost(
         navController = navController, startDestination = startDestination
     ) {
+        composable(Destinations.SPLASH) {
+            SplashScreen(
+                onNavigateToLogin = {
+                    navController.navigate(Destinations.LOGIN) {
+                        // Убираем сплэш-экран из стека
+                        popUpTo(Destinations.SPLASH) { inclusive = true }
+                    }
+                },
+                onNavigateToMain = {
+                    navController.navigate(Destinations.MAIN) {
+                        popUpTo(Destinations.SPLASH) { inclusive = true }
+                    }
+                }
+            )
+        }
+
+
         composable(Destinations.LOGIN) {
             LoginScreen(onLoginSuccess = {
                 navController.navigate(Destinations.MAIN) {
@@ -32,7 +50,7 @@ fun ZapasNavGraph(
             })
         }
 
-        composable("register") {
+        composable(Destinations.REGISTER_STEP1) {
             RegisterScreen(
                 onRegisterComplete = {
                     // После регистрации возвращаемся на экран логина

@@ -1,8 +1,15 @@
-package com.example.zapas.ui.presentation.viewmodels
+package com.example.zapas.ui.presentation.viewmodels.auth
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.zapas.data.repository.AuthRepository
+import com.example.zapas.domain.usecase.auth.CheckAuthStatusUseCase
+import com.example.zapas.domain.usecase.auth.LoginParams
+import com.example.zapas.domain.usecase.auth.LoginResult
+import com.example.zapas.domain.usecase.auth.LoginUseCase
+import com.example.zapas.domain.usecase.auth.LogoutUseCase
+import com.example.zapas.domain.usecase.auth.RegisterParams
+import com.example.zapas.domain.usecase.auth.RegisterResult
+import com.example.zapas.domain.usecase.auth.RegisterUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -11,7 +18,10 @@ import javax.inject.Inject
 
 @HiltViewModel
 class AuthViewModel @Inject constructor(
-    private val authRepository: AuthRepository
+    private val loginUseCase: LoginUseCase,
+    private val registerUseCase: RegisterUseCase,
+    private val checkAuthStatusUseCase: CheckAuthStatusUseCase,
+    private val logoutUseCase: LogoutUseCase
 ) : ViewModel() {
 
     // Состояние для логина
@@ -26,9 +36,9 @@ class AuthViewModel @Inject constructor(
         viewModelScope.launch {
             _loginState.value = LoginState.Loading
 
-            val success = authRepository.login(username, password)
+            val result = loginUseCase(LoginParams(username, password))
 
-            _loginState.value = if (success) {
+            _loginState.value = if (result is LoginResult.Success) {
                 LoginState.Success
             } else {
                 LoginState.Error("Не удалось войти")
@@ -40,9 +50,9 @@ class AuthViewModel @Inject constructor(
         viewModelScope.launch {
             _registerState.value = RegisterState.Loading
 
-            val success = authRepository.register(username, password, display_name)
+            val result = registerUseCase(RegisterParams(username, password, display_name))
 
-            _registerState.value = if (success) {
+            _registerState.value = if (result is RegisterResult.Success) {
                 RegisterState.Success
             } else {
                 RegisterState.Error("Не удалось зарегистрироваться")
@@ -51,12 +61,12 @@ class AuthViewModel @Inject constructor(
     }
 
     suspend fun checkAuthStatus(): Boolean {
-        return authRepository.isLoggedIn()
+        return checkAuthStatusUseCase()
     }
 
     fun logout() {
         viewModelScope.launch {
-            authRepository.logout()
+            logoutUseCase()
         }
     }
 }

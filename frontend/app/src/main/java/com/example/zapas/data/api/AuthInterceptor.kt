@@ -26,7 +26,7 @@ class AuthInterceptor @Inject constructor(
         }
 
         // Если токен есть, добавляем его в заголовок
-        val requestWithToken = if (!token.isNullOrEmpty()) {
+        val requestWithToken = if (token != null) {
             originalRequest.newBuilder()
                 .header("Authorization", "Bearer $token")
                 .build()

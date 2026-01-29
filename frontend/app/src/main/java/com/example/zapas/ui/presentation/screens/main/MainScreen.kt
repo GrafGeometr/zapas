@@ -1,3 +1,4 @@
+// ui/presentation/screens/main/MainScreen.kt
 package com.example.zapas.ui.presentation.screens.main
 
 import androidx.compose.foundation.layout.Column
@@ -16,19 +17,16 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import com.example.zapas.ZapasApplication
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.zapas.ui.presentation.viewmodels.main.MainViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreen(onLogout: () -> Unit) {
-    val app = LocalContext.current.applicationContext as ZapasApplication
-
+fun MainScreen(
+    onLogout: () -> Unit,
+    viewModel: MainViewModel = hiltViewModel()
+) {
     Scaffold(topBar = {
         TopAppBar(
             title = { Text("Мои комнаты") })
@@ -49,11 +47,10 @@ fun MainScreen(onLogout: () -> Unit) {
 
             Button(
                 onClick = {
-                    CoroutineScope(Dispatchers.Main).launch {
-                        app.tokenManager.clearTokens()
-                        onLogout()
-                    }
-                }, modifier = Modifier
+                    // Вызываем logout из ViewModel
+                    viewModel.logout(onLogout)
+                },
+                modifier = Modifier
                     .fillMaxWidth()
                     .padding(16.dp)
             ) {

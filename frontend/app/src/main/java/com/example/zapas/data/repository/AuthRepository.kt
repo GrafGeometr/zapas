@@ -7,13 +7,14 @@ import com.example.zapas.data.api.dto.request.UserLoginDto
 import com.example.zapas.data.api.dto.response.TokenResponseDto
 import com.example.zapas.data.local.TokenManager
 import com.example.zapas.domain.models.Token
+import com.example.zapas.domain.repository.AuthRepository
 import javax.inject.Inject
 
-class AuthRepository @Inject constructor(
+class AuthRepositoryImpl @Inject constructor(
     private val authApi: AuthApiService, private val tokenManager: TokenManager
-) {
+) : AuthRepository {
 
-    suspend fun login(username: String, password: String): Boolean {
+    override suspend fun login(username: String, password: String): Boolean {
         try {
             // 1. Создаём DTO для запроса
             val request = LoginRequestDto(
@@ -44,7 +45,7 @@ class AuthRepository @Inject constructor(
         }
     }
 
-    suspend fun register(username: String, password: String, display_name: String): Boolean {
+    override suspend fun register(username: String, password: String, displayName: String): Boolean {
         try {
             // 1. Создаём DTO для регистрации
             val request = RegisterRequestDto(
@@ -52,7 +53,7 @@ class AuthRepository @Inject constructor(
                     username = username,
                     passwd = password
                 ),
-                display_name = display_name
+                display_name = displayName
             )
 
             // 2. Отправляем запрос
@@ -100,12 +101,11 @@ class AuthRepository @Inject constructor(
         }
     }
 
-    suspend fun isLoggedIn(): Boolean {
+    override suspend fun isLoggedIn(): Boolean {
         return tokenManager.hasToken()
     }
 
-    suspend fun logout() {
+    override suspend fun logout() {
         tokenManager.clearTokens()
     }
 }
-

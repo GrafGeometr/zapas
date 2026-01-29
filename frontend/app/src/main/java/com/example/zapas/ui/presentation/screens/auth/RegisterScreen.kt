@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
@@ -37,8 +36,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.example.zapas.ui.presentation.viewmodels.AuthViewModel
-import com.example.zapas.ui.presentation.viewmodels.RegisterState
+import com.example.zapas.ui.presentation.viewmodels.auth.AuthViewModel
+import com.example.zapas.ui.presentation.viewmodels.auth.RegisterState
 
 @Composable
 fun RegisterScreen(

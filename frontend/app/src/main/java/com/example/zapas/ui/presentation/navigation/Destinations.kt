@@ -1,6 +1,7 @@
 package com.example.zapas.ui.presentation.navigation
 
 object Destinations {
+    const val SPLASH = "splash"
     const val LOGIN = "login"
     const val MAIN = "main"
     const val REGISTER_STEP1 = "register/step1"

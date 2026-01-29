@@ -1,6 +1,5 @@
 package com.example.zapas.ui.presentation.screens.auth
 
-import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -28,9 +27,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.example.zapas.ui.presentation.viewmodels.AuthViewModel
-import com.example.zapas.ui.presentation.viewmodels.LoginState
-import kotlinx.coroutines.delay
+import com.example.zapas.ui.presentation.viewmodels.auth.AuthViewModel
+import com.example.zapas.ui.presentation.viewmodels.auth.LoginState
 
 
 @Composable
