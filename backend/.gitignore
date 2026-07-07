@@ -1,0 +1,10 @@
+/target/
+/buf/
+
+.idea/
+.vscode/
+
+*.env
+*.db
+*.db-journal
+*.db-wal
