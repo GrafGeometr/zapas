@@ -4,7 +4,11 @@ use utoipa_scalar::{Scalar, Servable};
 
 #[derive(OpenApi)]
 #[openapi(
-    paths(crate::web::v1::ping::ping, crate::web::v1::ping::coffee),
+    paths(
+        crate::web::v1::ping::ping,
+        crate::web::v1::ping::coffee,
+        crate::web::v1::user::register
+    ),
     info(title = "Zapas API")
 )]
 struct ApiDoc;

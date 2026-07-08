@@ -1,8 +1,11 @@
+pub mod app;
 pub mod err;
 pub mod web;
 
 use sqlx::PgPool;
 use tracing::{info, warn};
+
+use crate::app::App;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -10,7 +13,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     dotenv();
     let pool = connect_db().await?;
     migration(&pool).await?;
-    web::server(pool).await?;
+
+    let app = App { pool };
+    web::server(app).await?;
 
     Ok(())
 }
@@ -33,7 +38,7 @@ fn fmt() {
         .with_target(true)
         .with_file(true)
         .with_line_number(true)
-        .with_max_level(tracing::Level::INFO)
+        .with_max_level(tracing::Level::TRACE)
         .pretty()
         .init();
     warn!("Session is coming");

@@ -1,9 +1,12 @@
+pub mod ping;
+pub mod user;
+
+use crate::app::App;
 use axum::Router;
 
-pub mod ping;
-
-pub fn make_app() -> Router {
+pub fn make_app(app: App) -> Router {
     let ping = ping::make_app();
+    let user = Router::new().nest("/user", user::make_app(app));
 
-    Router::new().nest("/v1", ping)
+    Router::new().nest("/v1", ping.merge(user))
 }

@@ -2,9 +2,9 @@
 create table users (
     id uuid not null,
     username text not null,
-    email text null, -- Можно и без почты.
+    email text null default null, -- Можно и без почты.
 
-    verified_email bool not null, -- Прошла ли почта верификацию (false в том числе если почты нет).
+    verified_email bool not null default false, -- Прошла ли почта верификацию (false в том числе если почты нет).
 
     display_name text not null,
     bio text not null,
@@ -16,7 +16,7 @@ create table users (
     constraint users_pk primary key (id),
     constraint users_username_unique unique (username),
     constraint users_email_unique unique (email),
-    constraint users_email_valid check (email is null or (email like '%@%' and length(email) < 255)),
+    constraint users_email_valid check (email is null or (email like '%@%' and length(email) < 256)),
     constraint users_verified_email check (email is not null or not verified_email),
     constraint users_username_check check (4 <= length(username) and length(username) < 64 and username ~ '^[0-9a-z_]+$'),
     constraint users_display_name_check check (1 <= length(display_name) and length(display_name) < 128),

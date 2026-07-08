@@ -29,7 +29,7 @@ chrono = { version = "0.4.45", features = ["serde"] }
 # Пароли, секреты, генерация случайных чисел.
 argon2 = { version = "0.5.3" }
 jsonwebtoken = { version = "10.4.0", features = ["rust_crypto"] }
-random = { version = "0.14.1" }
+rand = { version = "0.10.2" }
 
 # Логирование.
 tracing = { version = "0.1.44" }
