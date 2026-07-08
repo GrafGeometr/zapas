@@ -1,7 +1,32 @@
+pub mod err;
+pub mod web;
+
+use sqlx::PgPool;
 use tracing::{info, warn};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    fmt();
+    dotenv();
+    let pool = connect_db().await?;
+    migration(&pool).await?;
+    web::server(pool).await?;
+
+    Ok(())
+}
+
+fn dotenv() {
+    match dotenvy::dotenv() {
+        Ok(_) => {
+            info!("Import .env");
+        }
+        Err(err) => {
+            warn!(".env file read error: {}", err);
+        }
+    }
+}
+
+fn fmt() {
     println!("Hello, world!");
 
     tracing_subscriber::fmt()
@@ -12,22 +37,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .pretty()
         .init();
     warn!("Session is coming");
+}
 
-    match dotenvy::dotenv() {
-        Ok(_) => {
-            info!("Import .env");
-        }
-        Err(err) => {
-            warn!(".env not found");
-        }
-    }
-
+async fn connect_db() -> Result<PgPool, Box<dyn std::error::Error>> {
     let db_url = std::env::var("DATABASE_URL")?;
     let pool = sqlx::PgPool::connect(&db_url).await?;
+    Ok(pool)
+}
 
+async fn migration(pool: &PgPool) -> Result<(), Box<dyn std::error::Error>> {
     info!("Start migration...");
-    sqlx::migrate!("./migrations").run(&pool).await?;
+    sqlx::migrate!("./migrations").run(pool).await?;
     info!("Finish migration!");
-
     Ok(())
 }
