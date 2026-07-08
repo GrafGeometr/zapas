@@ -37,3 +37,6 @@ tracing-subscriber = { version = "0.3.23" }
 
 # Кастомные ошибки.
 thiserror = { version = "2.0.18" }
+
+# Переменные окружения.
+dotenvy = "0.15.7"
