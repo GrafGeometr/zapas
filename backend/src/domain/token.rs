@@ -20,10 +20,15 @@ pub struct AuthToken {
     pub ip: String,
 }
 
+pub enum ProlongRes {
+    Ok(Session, AuthToken),
+    Delete(Uuid),
+}
+
 pub enum CheckRes {
     Ok(Session),
     NeedProlong,
-    Delete,
+    Delete(Uuid),
 }
 
 impl Session {
@@ -55,7 +60,7 @@ impl Session {
         self.last_active_at = Utc::now();
     }
 
-    // В случае None следует удалить сессию.
+    // В случае None следует удалить сессию. TODO
     pub fn prolongation(mut self, auth: AuthToken) -> Option<Self> {
         if self.id != auth.id || self.user != auth.user {
             return None; // always self.id == auth.id???
@@ -76,7 +81,7 @@ impl Session {
 
     pub fn check(mut self, auth: AuthToken) -> CheckRes {
         if self.id != auth.id || self.user != auth.user {
-            return CheckRes::Delete;
+            return CheckRes::Delete(self.id);
         }
         if self.ip != auth.ip {
             return CheckRes::NeedProlong;
@@ -87,7 +92,7 @@ impl Session {
         } else if self.last_token == Some(auth.token) {
             return CheckRes::NeedProlong;
         } else {
-            return CheckRes::Delete;
+            return CheckRes::Delete(self.id);
         }
 
         self.upd(auth.ip);

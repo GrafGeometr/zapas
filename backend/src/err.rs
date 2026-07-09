@@ -1,7 +1,7 @@
 use axum::{Json, http::StatusCode, response::IntoResponse};
 use serde::Serialize;
 use thiserror::Error;
-use tracing::warn;
+use tracing::{error, warn};
 use validator::ValidationErrors;
 
 #[derive(Debug, Error)]
@@ -23,6 +23,12 @@ pub enum AppErr {
 
     #[error("Wrong username or password")]
     WrongUserOrPasswd,
+
+    #[error("Unauthorized")]
+    Unauthorized,
+
+    #[error("Need prolongation token")]
+    NeedProlong,
 }
 
 #[derive(Serialize)]
@@ -61,5 +67,19 @@ impl IntoResponse for AppErr {
 impl From<validator::ValidationErrors> for AppErr {
     fn from(value: validator::ValidationErrors) -> Self {
         Self::ValidateErr(value)
+    }
+}
+
+pub trait ToAppErr<T> {
+    fn app_log(self) -> Result<T, AppErr>;
+}
+
+impl<T, E: std::fmt::Display> ToAppErr<T> for Result<T, E> {
+    #[track_caller]
+    fn app_log(self) -> Result<T, AppErr> {
+        self.map_err(|e| {
+            error!("Internal error: {}", e);
+            AppErr::IntrSrvErr
+        })
     }
 }

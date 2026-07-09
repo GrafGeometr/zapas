@@ -1,5 +1,9 @@
 use super::{dto::*, middlewares::*};
-use crate::{app::App, domain::token::Session, err::AppErr};
+use crate::{
+    app::App,
+    domain::token::Session,
+    err::{AppErr, ToAppErr},
+};
 use argon2::{
     Argon2, PasswordHasher,
     password_hash::{SaltString, rand_core},
@@ -101,10 +105,7 @@ pub async fn login(
     )
     .fetch_optional(&app.pool)
     .await
-    .map_err(|e| {
-        error!("login db error: {}", e);
-        AppErr::IntrSrvErr
-    })?
+    .app_log()?
     .ok_or(AppErr::WrongUserOrPasswd)?;
 
     let (session, auth) = Session::new(user.id, ip);
@@ -116,7 +117,7 @@ pub async fn login(
         session.token,
         session.last_token,
         session.ip
-    ).execute(&app.pool).await.map_err(|e| {error!("{}", e); AppErr::IntrSrvErr})?;
+    ).execute(&app.pool).await.app_log()?;
 
     let token = app.jwt.gen_jwt_auth(auth)?;
     Ok(Json(TokenDto { token }))
