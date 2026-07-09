@@ -8,7 +8,12 @@ use argon2::{
     Argon2, PasswordHasher,
     password_hash::{SaltString, rand_core},
 };
-use axum::{Extension, Json, Router, extract::State, middleware, routing::post};
+use axum::{
+    Extension, Json, Router,
+    extract::State,
+    middleware,
+    routing::{get, post},
+};
 use tracing::{debug, error};
 use uuid::Uuid;
 use validator::Validate;
@@ -18,10 +23,15 @@ pub fn make_app(app: App) -> Router {
         .route("/login", post(login))
         .layer(middleware::from_fn(login_middleware));
 
+    let with_auth = Router::new()
+        .route("/me", get(me))
+        .layer(middleware::from_fn_with_state(app.clone(), auth_middleware));
+
     Router::new()
         .route("/register", post(register))
         .route("/delete", post(delete))
         .merge(login_router)
+        .merge(with_auth)
         .with_state(app)
 }
 
@@ -121,6 +131,27 @@ pub async fn login(
 
     let token = app.jwt.gen_jwt_auth(auth)?;
     Ok(Json(TokenDto { token }))
+}
+
+#[utoipa::path(get,
+    path = "/api/v1/user/me",
+    responses(
+        (status=200, body = UserMeDto)
+    ),
+    security(
+        ("jwt" = [])
+    )
+)]
+pub async fn me(
+    State(app): State<App>,
+    Extension(user_id): Extension<Uuid>,
+) -> Result<Json<UserMeDto>, AppErr> {
+    let user = sqlx::query_as!(UserMeDto,
+        "select id, username, email, verified_email, display_name, bio, created_at from users where id = $1",
+        user_id
+    ).fetch_one(&app.pool).await.app_log()?;
+
+    Ok(Json(user))
 }
 
 fn gen_passwd_hash(passwd: &str) -> Result<String, AppErr> {

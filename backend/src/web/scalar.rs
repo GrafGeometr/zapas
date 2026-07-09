@@ -10,6 +10,7 @@ use utoipa_scalar::{Scalar, Servable};
         crate::web::v1::user::register,
         crate::web::v1::user::delete,
         crate::web::v1::user::login,
+        crate::web::v1::user::me,
     ),
     info(title = "Zapas API")
 )]
