@@ -1,3 +1,5 @@
+pub mod dto;
+pub mod middlewares;
 pub mod ping;
 pub mod user;
 

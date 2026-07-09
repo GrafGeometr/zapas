@@ -5,8 +5,8 @@ pub struct Session {
     pub id: Uuid,
     pub user: Uuid,
 
-    pub token: u32,
-    pub last_token: Option<u32>,
+    pub token: i64,
+    pub last_token: Option<i64>,
 
     pub ip: String,
     pub last_active_at: DateTime<Utc>,
@@ -16,7 +16,7 @@ pub struct AuthToken {
     pub id: Uuid,
     pub user: Uuid,
 
-    pub token: u32,
+    pub token: i64,
     pub ip: String,
 }
 
@@ -27,18 +27,27 @@ pub enum CheckRes {
 }
 
 impl Session {
-    pub fn new(user: Uuid, ip: String) -> Self {
+    pub fn new(user: Uuid, ip: String) -> (Self, AuthToken) {
         let id = Uuid::now_v7();
         let token = rand::random();
 
-        Self {
+        let this = Self {
             id,
             user,
             token,
             last_token: None,
-            ip,
+            ip: ip.clone(),
             last_active_at: Utc::now(),
-        }
+        };
+
+        let auth = AuthToken {
+            id,
+            user,
+            token,
+            ip,
+        };
+
+        (this, auth)
     }
 
     fn upd(&mut self, ip: String) {

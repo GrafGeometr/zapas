@@ -1,48 +1,24 @@
-use crate::{app::App, err::AppErr};
+use super::{dto::*, middlewares::*};
+use crate::{app::App, domain::token::Session, err::AppErr};
 use argon2::{
     Argon2, PasswordHasher,
     password_hash::{SaltString, rand_core},
 };
-use axum::{Json, Router, extract::State, routing::post};
-use serde::{Deserialize, Serialize};
+use axum::{Extension, Json, Router, extract::State, middleware, routing::post};
 use tracing::{debug, error};
-use utoipa::ToSchema;
 use uuid::Uuid;
 use validator::Validate;
 
 pub fn make_app(app: App) -> Router {
+    let login_router = Router::new()
+        .route("/login", post(login))
+        .layer(middleware::from_fn(login_middleware));
+
     Router::new()
         .route("/register", post(register))
         .route("/delete", post(delete))
+        .merge(login_router)
         .with_state(app)
-}
-
-#[derive(Deserialize, Validate, ToSchema)]
-pub struct RegisterDto {
-    #[validate(length(min = 4, max = 63))]
-    #[schema(example = "bob_ross")]
-    pub username: String,
-
-    #[validate(email)]
-    #[schema(example = "bob.ross@example.com")]
-    pub email: Option<String>,
-
-    #[validate(length(min = 1, max = 127))]
-    #[schema(example = "bob ross")]
-    pub display_name: String,
-
-    #[validate(length(max = 1023))]
-    #[schema(example = "")]
-    pub bio: String,
-
-    #[validate(length(min = 12, max = 255))]
-    #[schema(example = "super_password!67")]
-    pub passwd: String,
-}
-
-#[derive(Serialize, Deserialize, ToSchema)]
-pub struct UuidDto {
-    pub id: Uuid,
 }
 
 #[utoipa::path(post,
@@ -94,8 +70,56 @@ pub async fn register(
     Ok(Json(UuidDto { id: user_id }))
 }
 
-pub async fn delete(State(_): State<App>, Json(_): Json<UuidDto>) -> Result<(), AppErr> {
+#[utoipa::path(post,
+    path = "/api/v1/user/delete",
+    request_body = UuidDto,
+    responses(
+        (status = 200),
+    )
+)]
+pub async fn delete(State(_app): State<App>, Json(_user): Json<UuidDto>) -> Result<(), AppErr> {
     Err(AppErr::NotImplemented)
+}
+
+#[utoipa::path(post,
+    path = "/api/v1/user/login",
+    request_body = LoginDto,
+    responses(
+        (status = 200, body = TokenDto),
+    )
+)]
+pub async fn login(
+    State(app): State<App>,
+    Extension(ip): Extension<String>,
+    Json(login): Json<LoginDto>,
+) -> Result<Json<TokenDto>, AppErr> {
+    login.validate()?;
+
+    let user = sqlx::query!(
+        "select id, passwd_hash from users where username = $1",
+        login.username
+    )
+    .fetch_optional(&app.pool)
+    .await
+    .map_err(|e| {
+        error!("login db error: {}", e);
+        AppErr::IntrSrvErr
+    })?
+    .ok_or(AppErr::WrongUserOrPasswd)?;
+
+    let (session, auth) = Session::new(user.id, ip);
+
+    sqlx::query!(
+        "insert into sessions (id, user_id, token_id, last_token_id, ip_addr) values ($1, $2, $3, $4, $5)",
+        session.id,
+        session.user,
+        session.token,
+        session.last_token,
+        session.ip
+    ).execute(&app.pool).await.map_err(|e| {error!("{}", e); AppErr::IntrSrvErr})?;
+
+    let token = app.jwt.gen_jwt_auth(auth)?;
+    Ok(Json(TokenDto { token }))
 }
 
 fn gen_passwd_hash(passwd: &str) -> Result<String, AppErr> {

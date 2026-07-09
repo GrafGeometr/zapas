@@ -7,7 +7,9 @@ use utoipa_scalar::{Scalar, Servable};
     paths(
         crate::web::v1::ping::ping,
         crate::web::v1::ping::coffee,
-        crate::web::v1::user::register
+        crate::web::v1::user::register,
+        crate::web::v1::user::delete,
+        crate::web::v1::user::login,
     ),
     info(title = "Zapas API")
 )]

@@ -20,6 +20,9 @@ pub enum AppErr {
 
     #[error("Email already exists")]
     EmailAlreadyExists,
+
+    #[error("Wrong username or password")]
+    WrongUserOrPasswd,
 }
 
 #[derive(Serialize)]

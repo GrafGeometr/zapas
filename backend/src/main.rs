@@ -4,7 +4,10 @@ pub mod err;
 pub mod repo;
 pub mod web;
 
-use crate::{app::App, repo::email::EmailRepo};
+use crate::{
+    app::App,
+    repo::{email::EmailRepo, jwt::JwtRepo},
+};
 use sqlx::PgPool;
 use tracing::{info, warn};
 
@@ -18,6 +21,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let app = App {
         pool,
         email: EmailRepo::new(),
+        jwt: JwtRepo::from_env()?,
     };
     web::server(app).await?;
 

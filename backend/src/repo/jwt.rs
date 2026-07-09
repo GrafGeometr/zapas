@@ -17,6 +17,10 @@ impl JwtRepo {
     const AUTH_EXP: Duration = Duration::days(30);
     const BEARER: &'static str = "Bearer";
 
+    pub fn from_env() -> Result<Self, Box<dyn std::error::Error>> {
+        Ok(Self::new(&std::env::var("JWT_SECRET")?))
+    }
+
     pub fn new(secret: &str) -> Self {
         Self {
             en: Arc::new(EncodingKey::from_secret(secret.as_bytes())),
@@ -40,7 +44,7 @@ impl JwtRepo {
         Ok(token)
     }
 
-    pub fn parse_jw_auth(&self, s: &str, ip: String) -> Result<AuthToken, AppErr> {
+    pub fn parse_jwt_auth(&self, s: &str, ip: String) -> Result<AuthToken, AppErr> {
         let s = Self::remove_bearer(s);
 
         let valid = Validation::new(Self::ALGO);
@@ -85,5 +89,5 @@ struct AuthClaims {
     pub exp: i64,
 
     pub user: Uuid,
-    pub token: u32,
+    pub token: i64,
 }
