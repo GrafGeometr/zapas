@@ -1,11 +1,12 @@
 pub mod app;
+pub mod domain;
 pub mod err;
+pub mod repo;
 pub mod web;
 
+use crate::{app::App, repo::email::EmailRepo};
 use sqlx::PgPool;
 use tracing::{info, warn};
-
-use crate::app::App;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -14,7 +15,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let pool = connect_db().await?;
     migration(&pool).await?;
 
-    let app = App { pool };
+    let app = App {
+        pool,
+        email: EmailRepo::new(),
+    };
     web::server(app).await?;
 
     Ok(())

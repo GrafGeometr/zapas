@@ -82,6 +82,14 @@ pub async fn register(
         }
     })?;
 
+    if let Some(email) = &reg.email {
+        let _ = app
+            .email
+            .send_verify(email)
+            .await
+            .map_err(|e| error!("Error send msg email {}, err: {} --- {:?}", email, e, e));
+    }
+
     debug!("Register user: {}, {}", reg.username, user_id);
     Ok(Json(UuidDto { id: user_id }))
 }
