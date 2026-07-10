@@ -69,3 +69,32 @@ pub struct UserMeDto {
 
     pub created_at: DateTime<Utc>,
 }
+
+#[derive(Deserialize, Validate)]
+pub struct MyProfileDto {
+    // TODO
+    pub username: Option<String>,
+    pub display_name: Option<String>,
+    pub bio: Option<String>,
+}
+
+#[derive(Serialize)]
+pub struct SessionDto {
+    pub id: Uuid,
+    pub ip_addr: String,
+    pub last_active_at: DateTime<Utc>,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Deserialize, Validate)]
+pub struct PasswdDto {
+    // TODO
+    pub old_passwd: String,
+    pub passwd: String,
+}
+
+#[derive(Deserialize, Validate)]
+pub struct EmailDto {
+    #[validate(email)]
+    pub email: String,
+}

@@ -21,10 +21,17 @@ use validator::Validate;
 pub fn make_app(app: App) -> Router {
     let login_router = Router::new()
         .route("/login", post(login))
+        .route("/forgot", post(forgot_passwd))
         .layer(middleware::from_fn(login_middleware));
 
     let with_auth = Router::new()
         .route("/me", get(me))
+        .route("/me/profile", post(upd_my_profile))
+        .route("/me/passwd", post(upd_passwd))
+        .route("/me/email", post(set_email))
+        .route("/me/email/verify", post(verify_email))
+        .route("/me/sessions", get(list_sessions))
+        .route("/me/logout", post(logout_all))
         .layer(middleware::from_fn_with_state(app.clone(), auth_middleware));
 
     Router::new()
@@ -117,6 +124,7 @@ pub async fn login(
     .await
     .app_log()?
     .ok_or(AppErr::WrongUserOrPasswd)?;
+    check_passwd_hash(&user.passwd_hash, &login.passwd)?;
 
     let (session, auth) = Session::new(user.id, ip);
 
@@ -154,6 +162,113 @@ pub async fn me(
     Ok(Json(user))
 }
 
+pub async fn upd_my_profile(
+    State(app): State<App>,
+    Extension(user_id): Extension<Uuid>,
+    Json(new_profile): Json<MyProfileDto>,
+) -> Result<Json<UserMeDto>, AppErr> {
+    new_profile.validate()?;
+
+    let user = sqlx::query_as!(
+        UserMeDto,
+        r#"
+        update users set
+            username = coalesce($1, username),
+            display_name = coalesce($2, display_name),
+            bio = coalesce($3, bio)
+        where id = $4
+        returning id, username, email, verified_email, display_name, bio, created_at"#,
+        new_profile.username,
+        new_profile.display_name,
+        new_profile.bio,
+        user_id
+    )
+    .fetch_one(&app.pool)
+    .await
+    .app_log()?;
+
+    Ok(Json(user))
+}
+
+pub async fn list_sessions(
+    State(app): State<App>,
+    Extension(user_id): Extension<Uuid>,
+) -> Result<Json<Vec<SessionDto>>, AppErr> {
+    let sessions = sqlx::query_as!(
+        SessionDto,
+        "select id, ip_addr, last_active_at, created_at from sessions where user_id = $1",
+        user_id
+    )
+    .fetch_all(&app.pool)
+    .await
+    .app_log()?;
+
+    Ok(Json(sessions))
+}
+
+pub async fn logout_all(
+    State(app): State<App>,
+    Extension(user_id): Extension<Uuid>,
+) -> Result<(), AppErr> {
+    sqlx::query!("delete from sessions where user_id = $1", user_id)
+        .execute(&app.pool)
+        .await
+        .app_log()?;
+
+    Ok(())
+}
+
+pub async fn upd_passwd(
+    State(app): State<App>,
+    Extension(user_id): Extension<Uuid>,
+    Json(passwd): Json<PasswdDto>,
+) -> Result<(), AppErr> {
+    let hash = sqlx::query!("select passwd_hash from users where id = $1", user_id)
+        .fetch_one(&app.pool)
+        .await
+        .app_log()?;
+    check_passwd_hash(&hash.passwd_hash, &passwd.old_passwd)?;
+
+    let new_hash = gen_passwd_hash(&passwd.passwd)?;
+    sqlx::query!(
+        "update users set passwd_hash = $1 where id = $2",
+        new_hash,
+        user_id
+    )
+    .execute(&app.pool)
+    .await
+    .app_log()?;
+
+    Ok(())
+}
+
+pub async fn forgot_passwd(
+    State(_app): State<App>,
+    Extension(ip): Extension<String>,
+    Json(email): Json<EmailDto>,
+) -> Result<(), AppErr> {
+    email.validate()?;
+
+    Err(AppErr::NotImplemented) // TODO
+}
+
+pub async fn verify_email(
+    State(_app): State<App>,
+    Extension(user_id): Extension<Uuid>,
+) -> Result<(), AppErr> {
+    Err(AppErr::NotImplemented) // TODO
+}
+
+pub async fn set_email(
+    State(_app): State<App>,
+    Extension(_user_id): Extension<Uuid>,
+    Json(email): Json<EmailDto>,
+) -> Result<(), AppErr> {
+    email.validate()?;
+
+    Err(AppErr::NotImplemented)
+}
+
 fn gen_passwd_hash(passwd: &str) -> Result<String, AppErr> {
     let salt = SaltString::generate(&mut rand_core::OsRng);
     let argon2 = Argon2::default();
@@ -165,4 +280,8 @@ fn gen_passwd_hash(passwd: &str) -> Result<String, AppErr> {
             AppErr::IntrSrvErr
         })
         .map(|hash| hash.to_string())
+}
+
+fn check_passwd_hash(passwd_hash: &str, passwd: &str) -> Result<(), AppErr> {
+    todo!()
 }
