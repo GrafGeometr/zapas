@@ -1,4 +1,7 @@
-use crate::{domain::token::AuthToken, err::AppErr};
+use crate::{
+    domain::token::{AuthToken, Session},
+    err::AppErr,
+};
 use chrono::{Duration, Utc};
 use jsonwebtoken::{DecodingKey, EncodingKey, Header, Validation, decode, encode};
 use serde::{Deserialize, Serialize};
@@ -28,12 +31,12 @@ impl JwtRepo {
         }
     }
 
-    pub fn gen_jwt_auth(&self, auth: AuthToken) -> Result<String, AppErr> {
+    pub fn gen_jwt_auth(&self, session: Session) -> Result<String, AppErr> {
         let claims = AuthClaims {
-            sub: auth.id,
+            sub: session.id,
             exp: (Utc::now() + Self::AUTH_EXP).timestamp(),
-            user: auth.user,
-            token: auth.token,
+            user: session.user,
+            token: session.token,
         };
 
         let token = encode(&Self::header(), &claims, &self.en).map_err(|e| {

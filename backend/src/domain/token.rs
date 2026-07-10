@@ -12,6 +12,7 @@ pub struct Session {
     pub last_active_at: DateTime<Utc>,
 }
 
+#[derive(Clone)]
 pub struct AuthToken {
     pub id: Uuid,
     pub user: Uuid,
@@ -21,7 +22,7 @@ pub struct AuthToken {
 }
 
 pub enum ProlongRes {
-    Ok(Session, AuthToken),
+    Ok(Session),
     Delete(Uuid),
 }
 
@@ -32,27 +33,18 @@ pub enum CheckRes {
 }
 
 impl Session {
-    pub fn new(user: Uuid, ip: String) -> (Self, AuthToken) {
+    pub fn new(user: Uuid, ip: String) -> Self {
         let id = Uuid::now_v7();
         let token = rand::random();
 
-        let this = Self {
+        Self {
             id,
             user,
             token,
             last_token: None,
-            ip: ip.clone(),
+            ip: ip,
             last_active_at: Utc::now(),
-        };
-
-        let auth = AuthToken {
-            id,
-            user,
-            token,
-            ip,
-        };
-
-        (this, auth)
+        }
     }
 
     fn upd(&mut self, ip: String) {
@@ -60,10 +52,9 @@ impl Session {
         self.last_active_at = Utc::now();
     }
 
-    // В случае None следует удалить сессию. TODO
-    pub fn prolongation(mut self, auth: AuthToken) -> Option<Self> {
+    pub fn prolongation(mut self, auth: AuthToken) -> ProlongRes {
         if self.id != auth.id || self.user != auth.user {
-            return None; // always self.id == auth.id???
+            return ProlongRes::Delete(self.id); // always self.id == auth.id???
         }
 
         if self.token == auth.token {
@@ -72,11 +63,11 @@ impl Session {
         } else if self.last_token == Some(auth.token) {
             self.token = rand::random();
         } else {
-            return None;
+            return ProlongRes::Delete(self.id);
         }
 
         self.upd(auth.ip);
-        Some(self)
+        ProlongRes::Ok(self)
     }
 
     pub fn check(mut self, auth: AuthToken) -> CheckRes {

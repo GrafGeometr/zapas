@@ -1,11 +1,11 @@
 use super::{dto::*, middlewares::*};
 use crate::{
     app::App,
-    domain::token::Session,
+    domain::token::{AuthToken, ProlongRes, Session},
     err::{AppErr, ToAppErr},
 };
 use argon2::{
-    Argon2, PasswordHasher,
+    Argon2, PasswordHash, PasswordHasher, PasswordVerifier,
     password_hash::{SaltString, rand_core},
 };
 use axum::{
@@ -14,7 +14,8 @@ use axum::{
     middleware,
     routing::{get, post},
 };
-use tracing::{debug, error};
+use chrono::Utc;
+use tracing::{debug, error, warn};
 use uuid::Uuid;
 use validator::Validate;
 
@@ -23,6 +24,14 @@ pub fn make_app(app: App) -> Router {
         .route("/login", post(login))
         .route("/forgot", post(forgot_passwd))
         .layer(middleware::from_fn(login_middleware));
+
+    let prolong_router =
+        Router::new()
+            .route("/prolong", post(prolongation))
+            .layer(middleware::from_fn_with_state(
+                app.clone(),
+                prolongation_middleware,
+            ));
 
     let with_auth = Router::new()
         .route("/me", get(me))
@@ -38,6 +47,7 @@ pub fn make_app(app: App) -> Router {
         .route("/register", post(register))
         .route("/delete", post(delete))
         .merge(login_router)
+        .merge(prolong_router)
         .merge(with_auth)
         .with_state(app)
 }
@@ -126,7 +136,7 @@ pub async fn login(
     .ok_or(AppErr::WrongUserOrPasswd)?;
     check_passwd_hash(&user.passwd_hash, &login.passwd)?;
 
-    let (session, auth) = Session::new(user.id, ip);
+    let session = Session::new(user.id, ip);
 
     sqlx::query!(
         "insert into sessions (id, user_id, token_id, last_token_id, ip_addr) values ($1, $2, $3, $4, $5)",
@@ -137,7 +147,7 @@ pub async fn login(
         session.ip
     ).execute(&app.pool).await.app_log()?;
 
-    let token = app.jwt.gen_jwt_auth(auth)?;
+    let token = app.jwt.gen_jwt_auth(session)?;
     Ok(Json(TokenDto { token }))
 }
 
@@ -244,7 +254,7 @@ pub async fn upd_passwd(
 
 pub async fn forgot_passwd(
     State(_app): State<App>,
-    Extension(ip): Extension<String>,
+    Extension(_ip): Extension<String>,
     Json(email): Json<EmailDto>,
 ) -> Result<(), AppErr> {
     email.validate()?;
@@ -254,7 +264,7 @@ pub async fn forgot_passwd(
 
 pub async fn verify_email(
     State(_app): State<App>,
-    Extension(user_id): Extension<Uuid>,
+    Extension(_user_id): Extension<Uuid>,
 ) -> Result<(), AppErr> {
     Err(AppErr::NotImplemented) // TODO
 }
@@ -267,6 +277,52 @@ pub async fn set_email(
     email.validate()?;
 
     Err(AppErr::NotImplemented)
+}
+
+pub async fn prolongation(
+    State(app): State<App>,
+    Extension(auth): Extension<AuthToken>,
+) -> Result<Json<TokenDto>, AppErr> {
+    let session_row = sqlx::query!(
+        "select id, user_id, token_id, last_token_id, ip_addr from sessions where id = $1",
+        auth.id
+    )
+    .fetch_optional(&app.pool)
+    .await
+    .app_log()?
+    .ok_or(AppErr::Unauthorized)?;
+
+    let session = Session {
+        id: session_row.id,
+        user: session_row.user_id,
+        token: session_row.token_id,
+        last_token: session_row.last_token_id,
+        ip: session_row.ip_addr,
+        last_active_at: Utc::now(),
+    };
+
+    match session.prolongation(auth) {
+        ProlongRes::Ok(session) => {
+            sqlx::query!(
+                "update sessions set token_id = $1, last_token_id = $2, ip_addr = $3, last_active_at = $4",
+                session.token,
+                session.last_token,
+                session.ip,
+                session.last_active_at
+            ).execute(&app.pool).await.app_log()?;
+
+            let token = app.jwt.gen_jwt_auth(session)?;
+            Ok(Json(TokenDto { token }))
+        }
+        ProlongRes::Delete(uuid) => {
+            let _ = sqlx::query!("delete from sessions where id = $1", uuid)
+                .execute(&app.pool)
+                .await
+                .app_log();
+
+            Err(AppErr::Unauthorized)
+        }
+    }
 }
 
 fn gen_passwd_hash(passwd: &str) -> Result<String, AppErr> {
@@ -283,5 +339,15 @@ fn gen_passwd_hash(passwd: &str) -> Result<String, AppErr> {
 }
 
 fn check_passwd_hash(passwd_hash: &str, passwd: &str) -> Result<(), AppErr> {
-    todo!()
+    let hash = PasswordHash::new(passwd_hash).app_log()?;
+    let argon2 = Argon2::default();
+
+    argon2
+        .verify_password(passwd.as_bytes(), &hash)
+        .map_err(|e| {
+            warn!("Check passwd err: {}", e);
+            AppErr::WrongUserOrPasswd
+        })?;
+
+    Ok(())
 }

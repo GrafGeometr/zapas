@@ -87,3 +87,27 @@ pub async fn auth_middleware(
         }
     }
 }
+
+pub async fn prolongation_middleware(
+    State(app): State<App>,
+    mut req: Request<Body>,
+    next: Next,
+) -> Result<Response, AppErr> {
+    let ip = req
+        .headers()
+        .get("X-Real-IP")
+        .and_then(|x| x.to_str().ok())
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| "127.0.0.1".to_string());
+
+    let header = req
+        .headers()
+        .get("Authorization")
+        .and_then(|x| x.to_str().ok())
+        .ok_or(AppErr::Unauthorized)?;
+
+    let auth = app.jwt.parse_jwt_auth(header, ip)?;
+
+    req.extensions_mut().insert(auth);
+    Ok(next.run(req).await)
+}
