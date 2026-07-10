@@ -1,8 +1,24 @@
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
 use validator::Validate;
+
+#[derive(Serialize, Deserialize, ToSchema)]
+pub struct Pagination {
+    pub num: i64,
+    pub size: i64,
+}
+
+impl Pagination {
+    pub fn limit(&self) -> i64 {
+        self.size
+    }
+
+    pub fn offset(&self) -> i64 {
+        self.num * self.size
+    }
+}
 
 #[derive(Deserialize, Validate, ToSchema)]
 pub struct RegisterDto {
@@ -97,4 +113,49 @@ pub struct PasswdDto {
 pub struct EmailDto {
     #[validate(email)]
     pub email: String,
+}
+
+#[derive(Deserialize, Validate)]
+pub struct MakeRoomDto {
+    // TODO
+    pub display_name: String,
+    pub bio: String,
+}
+
+#[derive(Serialize)]
+pub struct RoomProfileDto {
+    pub id: Uuid,
+
+    pub display_name: String,
+    pub bio: String,
+
+    pub review_interval: Option<Duration>,
+    pub expired_notify: Option<Duration>,
+
+    pub created_at: DateTime<Utc>,
+}
+
+pub struct RoomProfileDb {
+    pub id: Uuid,
+
+    pub display_name: String,
+    pub bio: String,
+
+    pub review_interval: Option<i64>,
+    pub expired_notify: Option<i64>,
+
+    pub created_at: DateTime<Utc>,
+}
+
+impl From<RoomProfileDb> for RoomProfileDto {
+    fn from(x: RoomProfileDb) -> Self {
+        Self {
+            id: x.id,
+            display_name: x.display_name,
+            bio: x.bio,
+            review_interval: x.review_interval.map(|x| Duration::seconds(x)),
+            expired_notify: x.expired_notify.map(|x| Duration::seconds(x)),
+            created_at: x.created_at,
+        }
+    }
 }

@@ -1,4 +1,4 @@
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Duration, Utc};
 use uuid::Uuid;
 
 pub struct Session {
@@ -28,6 +28,7 @@ pub enum ProlongRes {
 
 pub enum CheckRes {
     Ok(Session),
+    OkWithoutWrite(Session),
     NeedProlong,
     Delete(Uuid),
 }
@@ -78,7 +79,10 @@ impl Session {
             return CheckRes::NeedProlong;
         }
 
+        let mut write = false;
+
         if self.token == auth.token {
+            write |= self.last_token.is_some();
             self.last_token = None;
         } else if self.last_token == Some(auth.token) {
             return CheckRes::NeedProlong;
@@ -86,7 +90,15 @@ impl Session {
             return CheckRes::Delete(self.id);
         }
 
-        self.upd(auth.ip);
-        CheckRes::Ok(self)
+        if self.last_active_at + Duration::minutes(15) < Utc::now() {
+            self.upd(auth.ip);
+            write = true;
+        }
+
+        if write {
+            CheckRes::Ok(self)
+        } else {
+            CheckRes::OkWithoutWrite(self)
+        }
     }
 }

@@ -1,6 +1,7 @@
 create index idx_sessions_user_id on sessions(user_id);
 
 create index idx_members_room_id on members(room_id, user_id);
+create index idx_members_user_id_and_time on members(user_id, created_at);
 
 create index idx_storage_room_id on storages(room_id);
 

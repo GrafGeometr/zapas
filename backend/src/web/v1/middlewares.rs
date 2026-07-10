@@ -62,13 +62,19 @@ pub async fn auth_middleware(
     };
 
     match session.check(auth) {
+        CheckRes::OkWithoutWrite(session) => {
+            req.extensions_mut().insert(session.user);
+            Ok(next.run(req).await)
+        }
+
         CheckRes::Ok(session) => {
             sqlx::query!(
-                "update sessions set token_id = $1, last_token_id = $2, ip_addr = $3, last_active_at = $4",
+                "update sessions set token_id = $1, last_token_id = $2, ip_addr = $3, last_active_at = $4 where id = $5",
                 session.token,
                 session.last_token,
                 session.ip,
-                session.last_active_at
+                session.last_active_at,
+                session.id
             ).execute(&app.pool).await.app_log()?;
 
             req.extensions_mut().insert(session.user);

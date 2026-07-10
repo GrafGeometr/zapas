@@ -61,16 +61,16 @@ create table rooms (
     display_name text not null,
     bio text not null,
 
-    review_interval interval null, -- null -> не задано, 0 -> нет, иначе значение.
-    expired_notify interval null, -- null -> не задано, 0 -> нет, иначе значение.
+    review_interval bigint null, -- null -> не задано, 0 -> нет, иначе значение.
+    expired_notify bigint null, -- null -> не задано, 0 -> нет, иначе значение.
 
     created_at timestamptz not null default now(),
 
     constraint rooms_pk primary key (id),
     constraint rooms_display_name_check check (1 <= length(display_name) and length(display_name) < 128),
     constraint rooms_bio_check check (length(bio) < 1024),
-    constraint rooms_review_interval_check check (review_interval >= '0'::interval),
-    constraint rooms_expired_notify_check check (expired_notify >= '0'::interval)
+    constraint rooms_review_interval_check check (review_interval >= 0),
+    constraint rooms_expired_notify_check check (expired_notify >= 0)
 );
 
 
@@ -83,16 +83,16 @@ create table storages (
     display_name text not null,
     bio text not null,
 
-    review_interval interval null, -- null -> не задано, 0 -> нет, иначе значение.
-    expired_notify interval null, -- null -> не задано, 0 -> нет, иначе значение.
+    review_interval bigint null, -- null -> не задано, 0 -> нет, иначе значение.
+    expired_notify bigint null, -- null -> не задано, 0 -> нет, иначе значение.
 
     created_at timestamptz not null default now(),
 
     constraint storages_pk primary key (id),
     constraint storages_unique_name unique (room_id, display_name),
     constraint storages_room_id_fk foreign key (room_id) references rooms(id) on delete cascade,
-    constraint storages_review_interval_check check (review_interval >= '0'::interval),
-    constraint storages_expired_notify_check check (expired_notify >= '0'::interval),
+    constraint storages_review_interval_check check (review_interval >= 0),
+    constraint storages_expired_notify_check check (expired_notify >= 0),
     constraint storages_display_name_check check (1 <= length(display_name) and length(display_name) < 128),
     constraint storages_bio_check check (length(bio) < 1024)
 );
@@ -111,10 +111,10 @@ create table items (
     amount bigint not null,
     amount_type text not null,
 
-    review_interval interval null, -- null -> default, 0 -> нет, иначе значение.
+    review_interval bigint null, -- null -> default, 0 -> нет, иначе значение.
     needed_review bool not null,
 
-    expired_notify interval null, -- null -> default, 0 -> нет, иначе значение.
+    expired_notify bigint null, -- null -> default, 0 -> нет, иначе значение.
     expired_at timestamptz null,
 
     created_at timestamptz not null default now(),
@@ -124,8 +124,8 @@ create table items (
     constraint items_storage_id_fk foreign key (storage_id) references storages(id) on delete cascade,
     constraint items_amount_check check ((amount > 0 and amount_type not in ('none', 'few', 'mid', 'many')) or amount = 0),
     constraint items_amount_type_enum check (amount_type in ('g', 'ml', 'pcs', 'none', 'few', 'mid', 'many')),
-    constraint items_review_interval_check check (review_interval >= '0'::interval),
-    constraint items_expired_notify_check check (expired_notify >= '0'::interval),
+    constraint items_review_interval_check check (review_interval >= 0),
+    constraint items_expired_notify_check check (expired_notify >= 0),
     constraint items_display_name_check check (1 <= length(display_name) and length(display_name) < 64),
     constraint items_bio_check check (length(bio) < 1024)
 );
@@ -138,8 +138,8 @@ create table members (
     user_id uuid null, -- Если null, значит пользователя нет, осталась только его история.
     room_id uuid not null, -- Пользователя без комнаты нет.
 
-    display_name text null, -- Локальное имя пользователя внутри одной комнаты.
-    bio text null, -- Аналогично display_name.
+    display_name text null default null, -- Локальное имя пользователя внутри одной комнаты.
+    bio text null default null, -- Аналогично display_name.
 
     default_portions bigint not null, -- Стандартное число порций каждый день.
 

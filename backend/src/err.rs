@@ -29,6 +29,9 @@ pub enum AppErr {
 
     #[error("Need prolongation token")]
     NeedProlong,
+
+    #[error("Permission denied")]
+    PermissionDenied,
 }
 
 #[derive(Serialize)]
