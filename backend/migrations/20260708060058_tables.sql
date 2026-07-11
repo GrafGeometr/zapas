@@ -141,7 +141,7 @@ create table members (
     display_name text null default null, -- Локальное имя пользователя внутри одной комнаты.
     bio text null default null, -- Аналогично display_name.
 
-    default_portions bigint not null, -- Стандартное число порций каждый день.
+    default_portions bigint not null default 0, -- Стандартное число порций каждый день.
 
     precalc_portions bigint not null default 0, -- Число порций.
     precalc_food_purchases bigint not null default 0, -- Затраты на еду.

@@ -1,10 +1,10 @@
 use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
+use utoipa::{IntoParams, ToSchema};
 use uuid::Uuid;
 use validator::Validate;
 
-#[derive(Serialize, Deserialize, ToSchema)]
+#[derive(Serialize, Deserialize, IntoParams)]
 pub struct Pagination {
     pub num: i64,
     pub size: i64,
@@ -86,7 +86,7 @@ pub struct UserMeDto {
     pub created_at: DateTime<Utc>,
 }
 
-#[derive(Deserialize, Validate)]
+#[derive(Deserialize, Validate, ToSchema)]
 pub struct MyProfileDto {
     // TODO
     pub username: Option<String>,
@@ -94,7 +94,7 @@ pub struct MyProfileDto {
     pub bio: Option<String>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, ToSchema)]
 pub struct SessionDto {
     pub id: Uuid,
     pub ip_addr: String,
@@ -102,27 +102,27 @@ pub struct SessionDto {
     pub created_at: DateTime<Utc>,
 }
 
-#[derive(Deserialize, Validate)]
+#[derive(Deserialize, Validate, ToSchema)]
 pub struct PasswdDto {
     // TODO
     pub old_passwd: String,
     pub passwd: String,
 }
 
-#[derive(Deserialize, Validate)]
+#[derive(Deserialize, Validate, ToSchema)]
 pub struct EmailDto {
     #[validate(email)]
     pub email: String,
 }
 
-#[derive(Deserialize, Validate)]
+#[derive(Deserialize, Validate, ToSchema)]
 pub struct MakeRoomDto {
     // TODO
     pub display_name: String,
     pub bio: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, ToSchema)]
 pub struct RoomProfileDto {
     pub id: Uuid,
 

@@ -1,7 +1,7 @@
 use super::dto::*;
 use crate::{
     app::App,
-    err::{AppErr, ToAppErr},
+    err::{AppErr, AppErrJson, ToAppErr},
     web::v1::middlewares::auth_middleware,
 };
 use axum::{
@@ -21,6 +21,15 @@ pub fn make_app(app: App) -> Router {
         .with_state(app)
 }
 
+#[utoipa::path(post,
+    path = "/api/v1/room/make",
+    tag = "rooms",
+    request_body = MakeRoomDto,
+    responses(
+        (status = 200, body = UuidDto, description = "Rooms successfully created"),
+        (status = 401, body = AppErrJson, description = "Unathorized. Check prolongation"),
+        (status = 500, body = AppErrJson, description = "Internal server error")
+    ))]
 pub async fn make_room(
     State(app): State<App>,
     Extension(user_id): Extension<Uuid>,
@@ -55,6 +64,15 @@ pub async fn make_room(
     Ok(Json(UuidDto { id: room_id }))
 }
 
+#[utoipa::path(get,
+    path = "/api/v1/room/{room_id}",
+    tag = "rooms",
+    responses(
+        (status = 200, body = UuidDto, description = "Rooms successfully created"),
+        (status = 401, body = AppErrJson, description = "Unathorized. Check prolongation"),
+        (status = 403, body = AppErrJson, description = "Not a member"),
+        (status = 500, body = AppErrJson, description = "Internal server error")
+    ))]
 pub async fn room_profile(
     State(app): State<App>,
     Extension(user_id): Extension<Uuid>,
@@ -84,6 +102,17 @@ pub async fn room_profile(
     Ok(Json(res.into()))
 }
 
+#[utoipa::path(get,
+    path = "/api/v1/room/all",
+    tag = "rooms",
+    params(
+        Pagination
+    ),
+    responses(
+        (status = 200, body = UuidDto, description = "Rooms successfully created"),
+        (status = 401, body = AppErrJson, description = "Unathorized. Check prolongation"),
+        (status = 500, body = AppErrJson, description = "Internal server error")
+    ))]
 pub async fn rooms(
     State(app): State<App>,
     Extension(user_id): Extension<Uuid>,

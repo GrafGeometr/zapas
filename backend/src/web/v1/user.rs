@@ -2,7 +2,7 @@ use super::{dto::*, middlewares::*};
 use crate::{
     app::App,
     domain::token::{AuthToken, ProlongRes, Session},
-    err::{AppErr, ToAppErr},
+    err::{AppErr, AppErrJson, ToAppErr},
 };
 use argon2::{
     Argon2, PasswordHash, PasswordHasher, PasswordVerifier,
@@ -51,12 +51,15 @@ pub fn make_app(app: App) -> Router {
         .merge(with_auth)
         .with_state(app)
 }
-
 #[utoipa::path(post,
     path = "/api/v1/user/register",
+    tag = "auth",
     request_body = RegisterDto,
     responses(
-        (status = 200, body = UuidDto),
+        (status = 200, body = UuidDto, description = "Successfully registered a new user"),
+        (status = 400, body = AppErrJson, description = "Validation error"),
+        (status = 409, body = AppErrJson, description = "Username or email already exists"),
+        (status = 500, body = AppErrJson, description = "Internal server error"),
     )
 )]
 pub async fn register(
@@ -103,9 +106,11 @@ pub async fn register(
 
 #[utoipa::path(post,
     path = "/api/v1/user/delete",
+    tag = "users",
     request_body = UuidDto,
     responses(
-        (status = 200),
+        (status = 200, description = "Successfully delete user"),
+        (status = 501, body = AppErrJson, description = "Not implemented yet")
     )
 )]
 pub async fn delete(State(_app): State<App>, Json(_user): Json<UuidDto>) -> Result<(), AppErr> {
@@ -114,9 +119,11 @@ pub async fn delete(State(_app): State<App>, Json(_user): Json<UuidDto>) -> Resu
 
 #[utoipa::path(post,
     path = "/api/v1/user/login",
+    tag = "auth",
     request_body = LoginDto,
     responses(
-        (status = 200, body = TokenDto),
+        (status = 200, body = TokenDto, description = "Successfully logged in"),
+        (status = 401, body = AppErrJson, description = "Invalid credentials")
     )
 )]
 pub async fn login(
@@ -153,8 +160,9 @@ pub async fn login(
 
 #[utoipa::path(get,
     path = "/api/v1/user/me",
+    tag = "users",
     responses(
-        (status=200, body = UserMeDto)
+        (status = 200, body = UserMeDto, description = "Current user profile data")
     ),
     security(
         ("jwt" = [])
@@ -172,6 +180,17 @@ pub async fn me(
     Ok(Json(user))
 }
 
+#[utoipa::path(post,
+    path = "/api/v1/user/me/profile",
+    tag = "users",
+    request_body = MyProfileDto,
+    responses(
+        (status = 200, body = UserMeDto, description = "Successfully updated profile"),
+    ),
+    security(
+        ("jwt" = [])
+    )
+)]
 pub async fn upd_my_profile(
     State(app): State<App>,
     Extension(user_id): Extension<Uuid>,
@@ -200,6 +219,16 @@ pub async fn upd_my_profile(
     Ok(Json(user))
 }
 
+#[utoipa::path(get,
+    path = "/api/v1/user/me/sessions",
+    tag = "sessions",
+    responses(
+        (status = 200, body = [SessionDto], description = "List of active sessions"),
+    ),
+    security(
+        ("jwt" = [])
+    )
+)]
 pub async fn list_sessions(
     State(app): State<App>,
     Extension(user_id): Extension<Uuid>,
@@ -216,6 +245,16 @@ pub async fn list_sessions(
     Ok(Json(sessions))
 }
 
+#[utoipa::path(post,
+    path = "/api/v1/user/me/logout",
+    tag = "sessions",
+    responses(
+        (status = 200, description = "successfully logged out from all sessions"),
+    ),
+    security(
+        ("jwt" = [])
+    )
+)]
 pub async fn logout_all(
     State(app): State<App>,
     Extension(user_id): Extension<Uuid>,
@@ -228,6 +267,17 @@ pub async fn logout_all(
     Ok(())
 }
 
+#[utoipa::path(post,
+    path = "/api/v1/user/me/passwd",
+    tag = "users",
+    request_body = PasswdDto,
+    responses(
+        (status = 200, description = "Password successfully updated"),
+    ),
+    security(
+        ("jwt" = [])
+    )
+)]
 pub async fn upd_passwd(
     State(app): State<App>,
     Extension(user_id): Extension<Uuid>,
@@ -252,6 +302,14 @@ pub async fn upd_passwd(
     Ok(())
 }
 
+#[utoipa::path(post,
+    path = "/api/v1/user/forgot",
+    tag = "email",
+    request_body = EmailDto,
+    responses(
+        (status = 200, description = "Password reset link sent to email"),
+    )
+)]
 pub async fn forgot_passwd(
     State(_app): State<App>,
     Extension(_ip): Extension<String>,
@@ -262,6 +320,16 @@ pub async fn forgot_passwd(
     Err(AppErr::NotImplemented) // TODO
 }
 
+#[utoipa::path(post,
+    path = "/api/v1/user/me/email/verify",
+    tag = "email",
+    responses(
+        (status = 200, description = "Verification link sent to email"),
+    ),
+    security(
+        ("jwt" = [])
+    )
+)]
 pub async fn verify_email(
     State(_app): State<App>,
     Extension(_user_id): Extension<Uuid>,
@@ -269,6 +337,17 @@ pub async fn verify_email(
     Err(AppErr::NotImplemented) // TODO
 }
 
+#[utoipa::path(post,
+    path = "/api/v1/user/me/email",
+    tag = "email",
+    request_body = EmailDto,
+    responses(
+        (status = 200, description = "Update email and sent verification link"),
+    ),
+    security(
+        ("jwt" = [])
+    )
+)]
 pub async fn set_email(
     State(_app): State<App>,
     Extension(_user_id): Extension<Uuid>,
@@ -279,6 +358,18 @@ pub async fn set_email(
     Err(AppErr::NotImplemented)
 }
 
+#[utoipa::path(post,
+    path = "/api/v1/user/prolong",
+    tag = "auth",
+    responses(
+        (status = 200, body = TokenDto, description = "Session successfully prolonged"),
+        (status = 500, body = AppErrJson, description = "Internal server error"),
+        (status = 401, body = AppErrJson, description = "Prlonogation error. Most likely, there was a hacking attempt and the session was deleted.")
+    ),
+    security(
+        ("jwt" = [])
+    )
+)]
 pub async fn prolongation(
     State(app): State<App>,
     Extension(auth): Extension<AuthToken>,

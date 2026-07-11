@@ -1,3 +1,4 @@
+//! A Rust application.
 pub mod app;
 pub mod domain;
 pub mod err;
@@ -11,6 +12,7 @@ use crate::{
 use sqlx::PgPool;
 use tracing::{info, warn};
 
+/// The main function that runs the application.
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     fmt();
@@ -28,6 +30,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+/// Loads environment variables from a `.env` file.
 fn dotenv() {
     match dotenvy::dotenv() {
         Ok(_) => {
@@ -39,6 +42,7 @@ fn dotenv() {
     }
 }
 
+/// Initializes tracing with specific configurations.
 fn fmt() {
     println!("Hello, world!");
 
@@ -52,12 +56,14 @@ fn fmt() {
     warn!("Session is coming");
 }
 
+/// Establishes a connection to the PostgreSQL database.
 async fn connect_db() -> Result<PgPool, Box<dyn std::error::Error>> {
     let db_url = std::env::var("DATABASE_URL")?;
     let pool = sqlx::PgPool::connect(&db_url).await?;
     Ok(pool)
 }
 
+/// Runs migrations for the PostgreSQL database.
 async fn migration(pool: &PgPool) -> Result<(), Box<dyn std::error::Error>> {
     info!("Start migration...");
     sqlx::migrate!("./migrations").run(pool).await?;
