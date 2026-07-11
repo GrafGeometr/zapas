@@ -1,0 +1,42 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: docker.io/postgres:18-alpine3.24
+    container_name: zapas-postgres
+    environment:
+      POSTGRES_USER: zapas
+      POSTGRES_PASSWORD: zapas
+      POSTGRES_DB: zapas
+    volumes:
+      - zapas-pg:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U zapas"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    image: ghcr.io/yazorinv/zapas/zapas:latest
+    container_name: zapas
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgres://zapas:zapas@postgres:5432/zapas
+      JWT_SECRET: abacaba
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - app-network
+
+volumes:
+  zapas-pg:
+
+networks:
+  app-network:
+    driver: bridge
