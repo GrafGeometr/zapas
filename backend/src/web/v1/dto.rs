@@ -159,3 +159,15 @@ impl From<RoomProfileDb> for RoomProfileDto {
         }
     }
 }
+
+#[derive(Deserialize, Validate, ToSchema)]
+pub struct UpdRoomProfileDto {
+    pub display_name: Option<String>,
+    pub bio: Option<String>,
+}
+
+#[derive(Deserialize, Validate, ToSchema)]
+pub struct SetRoomTimingDto {
+    pub review_interval: Option<i64>,
+    pub expired_notify: Option<i64>,
+}

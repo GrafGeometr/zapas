@@ -19,6 +19,9 @@ use utoipa_scalar::{Scalar, Servable};
         crate::web::v1::room::make_room,
         crate::web::v1::room::room_profile,
         crate::web::v1::room::rooms,
+        crate::web::v1::room::upd_profile,
+        crate::web::v1::room::set_room_timing,
+        crate::web::v1::room::delete_room
     ),
     info(title = "Zapas API")
 )]

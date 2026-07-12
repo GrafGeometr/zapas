@@ -17,6 +17,9 @@ pub fn make_app(app: App) -> Router {
         .route("/make", post(make_room))
         .route("/{room_id}", get(room_profile))
         .route("/all", get(rooms))
+        .route("/{room_id}/profile", post(upd_profile))
+        .route("/{room_id}/timing", post(set_room_timing))
+        .route("/{room_id}/delete", post(delete_room))
         .layer(middleware::from_fn_with_state(app.clone(), auth_middleware))
         .with_state(app)
 }
@@ -142,4 +145,108 @@ pub async fn rooms(
     .app_log()?;
 
     Ok(Json(res.into_iter().map(|x| x.into()).collect()))
+}
+
+#[utoipa::path(post,
+    path = "/api/v1/room/{room_id}/profile",
+    tag = "rooms",
+    request_body = UpdRoomProfileDto,
+    responses(
+        (status = 200, body = RoomProfileDto, description = "Successfully updated profile"),
+        (status = 401, body = AppErrJson, description = "Unathorized. Check prolongation"),
+        (status = 500, body = AppErrJson, description = "Internal server error")
+    ))]
+pub async fn upd_profile(
+    State(app): State<App>,
+    Extension(user_id): Extension<Uuid>,
+    Path(room_id): Path<Uuid>,
+    Json(profile): Json<UpdRoomProfileDto>,
+) -> Result<Json<RoomProfileDto>, AppErr> {
+    let res = sqlx::query_as!(
+        RoomProfileDb,
+        r#"
+        update rooms as r set
+            display_name = coalesce($1, r.display_name),
+            bio = coalesce($2, r.bio)
+        from members as m
+        where m.user_id = $3 and m.room_id = $4 and r.id = $4
+        returning
+            r.id,
+            r.display_name,
+            r.bio,
+            r.review_interval,
+            r.expired_notify,
+            r.created_at
+        "#,
+        profile.display_name,
+        profile.bio,
+        user_id,
+        room_id
+    )
+    .fetch_optional(&app.pool)
+    .await
+    .app_log()?
+    .ok_or(AppErr::PermissionDenied)?;
+
+    Ok(Json(res.into()))
+}
+
+#[utoipa::path(post,
+    path = "/api/v1/room/{room_id}/timing",
+    tag = "rooms",
+    request_body = SetRoomTimingDto,
+    responses(
+        (status = 200, body = RoomProfileDto, description = "Successfully set timing for items"),
+        (status = 401, body = AppErrJson, description = "Unathorized. Check prolongation"),
+        (status = 500, body = AppErrJson, description = "Internal server error")
+    ))]
+pub async fn set_room_timing(
+    State(app): State<App>,
+    Extension(user_id): Extension<Uuid>,
+    Path(room_id): Path<Uuid>,
+    Json(profile): Json<SetRoomTimingDto>,
+) -> Result<Json<RoomProfileDto>, AppErr> {
+    let res = sqlx::query_as!(
+        RoomProfileDb,
+        r#"
+        update rooms as r set
+            review_interval = $1,
+            expired_notify = $2
+        from members as m
+        where m.user_id = $3 and m.room_id = $4 and r.id = $4
+        returning
+            r.id,
+            r.display_name,
+            r.bio,
+            r.review_interval,
+            r.expired_notify,
+            r.created_at
+        "#,
+        profile.review_interval,
+        profile.expired_notify,
+        user_id,
+        room_id
+    )
+    .fetch_optional(&app.pool)
+    .await
+    .app_log()?
+    .ok_or(AppErr::PermissionDenied)?;
+
+    Ok(Json(res.into()))
+}
+
+#[utoipa::path(post,
+    path = "/api/v1/room/{room_id}/delete",
+    tag = "rooms",
+    responses(
+        (status = 200, description = "Successfully deleted room"),
+        (status = 401, body = AppErrJson, description = "Unathorized. Check prolongation"),
+        (status = 500, body = AppErrJson, description = "Internal server error")
+    ))]
+pub async fn delete_room(
+    State(_app): State<App>,
+    Extension(_user_id): Extension<Uuid>,
+    Path(_room_id): Path<Uuid>,
+) -> Result<(), AppErr> {
+    Err(AppErr::NotImplemented)
 }
