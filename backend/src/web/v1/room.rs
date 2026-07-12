@@ -305,11 +305,11 @@ pub async fn all_members(
     .await
     .app_log()?;
 
-    if res.len() == 0 {
+    if res.is_empty() {
         return Err(AppErr::NotFound);
     }
 
-    Ok(Json(res.into_iter().map(|x| x.into()).collect()))
+    Ok(Json(res))
 }
 
 #[utoipa::path(post,

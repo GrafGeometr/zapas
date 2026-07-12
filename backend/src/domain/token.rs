@@ -43,7 +43,7 @@ impl Session {
             user,
             token,
             last_token: None,
-            ip: ip,
+            ip,
             last_active_at: Utc::now(),
         }
     }

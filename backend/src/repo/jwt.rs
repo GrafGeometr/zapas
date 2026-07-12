@@ -80,7 +80,7 @@ impl JwtRepo {
         Ok(res)
     }
 
-    fn remove_bearer<'a>(s: &'a str) -> &'a str {
+    fn remove_bearer(s: &str) -> &str {
         if s.starts_with(Self::BEARER) {
             &s[Self::BEARER.len() + 1..]
         } else {
