@@ -1,10 +1,11 @@
 package com.example.zapas.data.repository
 
 import com.example.zapas.data.api.AuthApiService
+import com.example.zapas.data.api.dto.request.AuthAccessRequestDto
+import com.example.zapas.data.api.dto.request.AuthRefreshRequestDto
 import com.example.zapas.data.api.dto.request.LoginRequestDto
 import com.example.zapas.data.api.dto.request.RegisterRequestDto
 import com.example.zapas.data.api.dto.request.UserLoginDto
-import com.example.zapas.data.api.dto.response.TokenResponseDto
 import com.example.zapas.data.local.TokenManager
 import com.example.zapas.domain.models.Token
 import com.example.zapas.domain.repository.AuthRepository
@@ -16,23 +17,18 @@ class AuthRepositoryImpl @Inject constructor(
 
     override suspend fun login(username: String, password: String): Boolean {
         try {
-            // 1. Создаём DTO для запроса
-            val request = LoginRequestDto(
-                username = username,
-                passwd = password
+            val response = authApi.login(
+                request = LoginRequestDto(
+                    username,
+                    password
+                )
             )
 
-            // 2. Отправляем запрос на сервер
-            val response = authApi.login(request)
-
-            // 3. Проверяем успешность
             if (response.isSuccessful) {
-                val tokenDto: TokenResponseDto? = response.body()
+                val tokenDto = response.body()
 
-                // 4. Сохраняем токен
                 if (tokenDto != null) {
-                    // Предполагаю, что это verify токен
-                    tokenManager.saveToken(Token.Verify(tokenDto.token))
+                    tokenManager.saveToken(Token.Refresh(tokenDto.refreshToken))
                     return true
                 }
             }
@@ -45,21 +41,22 @@ class AuthRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun register(username: String, password: String, displayName: String): Boolean {
+    override suspend fun register(
+        username: String,
+        password: String,
+        displayName: String
+    ): Boolean {
         try {
-            // 1. Создаём DTO для регистрации
-            val request = RegisterRequestDto(
+            val requestDto = RegisterRequestDto(
                 login = UserLoginDto(
-                    username = username,
-                    passwd = password
+                    username,
+                    password
                 ),
-                display_name = displayName
+                displayName
             )
 
-            // 2. Отправляем запрос
-            val response = authApi.register(request)
+            val response = authApi.register(request = requestDto)
 
-            // 3. Если успешно - сразу логинимся
             if (response.isSuccessful) {
                 return login(username, password)
             }
@@ -72,29 +69,40 @@ class AuthRepositoryImpl @Inject constructor(
         }
     }
 
-    suspend fun refreshToken(): Boolean {
+    override suspend fun refreshRefreshToken(refreshToken: String): Boolean {
         try {
-            // 1. Получаем refresh токен
-            val refreshToken = tokenManager.getRefreshToken()
-            if (refreshToken == null) {
-                return false
-            }
+            val request = AuthRefreshRequestDto(refreshToken)
+            val response = authApi.refresh(request)
 
-            // 2. Отправляем запрос на обновление
-            val authHeader = "Bearer ${refreshToken.value}"
-            val response = authApi.refreshTokens(authHeader)
-
-            // 3. Сохраняем новый токен
             if (response.isSuccessful) {
                 val tokenDto = response.body()
                 if (tokenDto != null) {
-                    tokenManager.saveToken(Token.Verify(tokenDto.token))
+                    tokenManager.saveToken(Token.Refresh(tokenDto.refreshToken))
                     return true
                 }
             }
 
             return false
+        } catch (e: Exception) {
+            e.printStackTrace()
+            return false
+        }
+    }
 
+    override suspend fun refreshAccessToken(refreshToken: String): Boolean {
+        try {
+            val request = AuthAccessRequestDto(refreshToken)
+            val response = authApi.authAccess(request)
+
+            if (response.isSuccessful) {
+                val tokenDto = response.body()
+                if (tokenDto != null) {
+                    tokenManager.saveToken(Token.Access(tokenDto.accessToken))
+                    return true
+                }
+            }
+
+            return false
         } catch (e: Exception) {
             e.printStackTrace()
             return false

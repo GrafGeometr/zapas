@@ -33,8 +33,8 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideAuthInterceptor(tokenManager: TokenManager): AuthInterceptor {
-        return AuthInterceptor(tokenManager)
+    fun provideAuthInterceptor(tokenManager: TokenManager, authRepository: AuthRepository): AuthInterceptor {
+        return AuthInterceptor(tokenManager, authRepository)
     }
 
     @Provides

@@ -1,11 +1,13 @@
 package com.example.zapas.data.api.dto.request
 
+import com.squareup.moshi.Json
+
 data class RegisterRequestDto(
-    val login: UserLoginDto,
-    val display_name: String  // Так называется в API
+    @Json(name = "login") val login: UserLoginDto,
+    @Json(name = "display_name") val displayName: String
 )
 
 data class UserLoginDto(
-    val username: String,
-    val passwd: String
+    @Json(name = "username") val username: String,
+    @Json(name = "passwd") val password: String
 )

@@ -1,7 +1,9 @@
 package com.example.zapas.data.api.dto.request
 
+import com.squareup.moshi.Json
+
 
 data class LoginRequestDto(
-    val username: String,
-    val passwd: String
+    @Json(name = "username") val username: String,
+    @Json(name = "passwd") val password: String
 )
