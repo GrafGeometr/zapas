@@ -102,3 +102,8 @@ impl Session {
         }
     }
 }
+
+// Stateless
+pub struct SlInviteToken {
+    pub room: Uuid,
+}

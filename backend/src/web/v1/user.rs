@@ -221,7 +221,7 @@ pub async fn upd_my_profile(
 
 #[utoipa::path(get,
     path = "/api/v1/user/me/sessions",
-    tag = "sessions",
+    tag = "auth",
     responses(
         (status = 200, body = [SessionDto], description = "List of active sessions"),
     ),
@@ -247,7 +247,7 @@ pub async fn list_sessions(
 
 #[utoipa::path(post,
     path = "/api/v1/user/me/logout",
-    tag = "sessions",
+    tag = "auth",
     responses(
         (status = 200, description = "successfully logged out from all sessions"),
     ),
@@ -283,6 +283,8 @@ pub async fn upd_passwd(
     Extension(user_id): Extension<Uuid>,
     Json(passwd): Json<PasswdDto>,
 ) -> Result<(), AppErr> {
+    passwd.validate()?;
+
     let hash = sqlx::query!("select passwd_hash from users where id = $1", user_id)
         .fetch_one(&app.pool)
         .await

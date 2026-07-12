@@ -1,12 +1,11 @@
 use crate::{
-    domain::token::{AuthToken, Session},
-    err::AppErr,
+    domain::token::{AuthToken, Session, SlInviteToken},
+    err::{AppErr, ToAppErr},
 };
 use chrono::{Duration, Utc};
 use jsonwebtoken::{DecodingKey, EncodingKey, Header, Validation, decode, encode};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use tracing::error;
 use uuid::Uuid;
 
 #[derive(Clone)]
@@ -33,17 +32,13 @@ impl JwtRepo {
 
     pub fn gen_jwt_auth(&self, session: Session) -> Result<String, AppErr> {
         let claims = AuthClaims {
-            sub: session.id,
+            id: session.id,
             exp: (Utc::now() + Self::AUTH_EXP).timestamp(),
             user: session.user,
             token: session.token,
         };
 
-        let token = encode(&Self::header(), &claims, &self.en).map_err(|e| {
-            error!("Jwt gen err: {}", e);
-            AppErr::IntrSrvErr
-        })?;
-
+        let token = encode(&Self::header(), &claims, &self.en).app_log()?;
         Ok(token)
     }
 
@@ -51,20 +46,37 @@ impl JwtRepo {
         let s = Self::remove_bearer(s);
 
         let valid = Validation::new(Self::ALGO);
-        let claims = decode::<AuthClaims>(s, &self.de, &valid)
-            .map_err(|e| {
-                error!("Jwt parse err: {}", e);
-                AppErr::IntrSrvErr
-            })?
-            .claims;
+        let claims = decode::<AuthClaims>(s, &self.de, &valid).app_log()?.claims;
 
         let res = AuthToken {
-            id: claims.sub,
+            id: claims.id,
             user: claims.user,
             token: claims.token,
             ip,
         };
 
+        Ok(res)
+    }
+
+    pub fn gen_sl_invite(&self, room: Uuid, dur: Duration) -> Result<String, AppErr> {
+        let claims = SlInviteClaims {
+            room,
+            exp: (Utc::now() + dur).timestamp(),
+        };
+
+        let token = encode(&Self::header(), &claims, &self.en).app_log()?;
+        Ok(token)
+    }
+
+    pub fn parse_sl_invite(&self, s: &str) -> Result<SlInviteToken, AppErr> {
+        let s = Self::remove_bearer(s);
+
+        let valid = Validation::new(Self::ALGO);
+        let claims = decode::<SlInviteClaims>(s, &self.de, &valid)
+            .app_log()?
+            .claims;
+
+        let res = SlInviteToken { room: claims.room };
         Ok(res)
     }
 
@@ -88,9 +100,15 @@ impl JwtRepo {
 #[derive(Serialize, Deserialize)]
 struct AuthClaims {
     // session_id.
-    pub sub: Uuid,
+    pub id: Uuid,
     pub exp: i64,
 
     pub user: Uuid,
     pub token: i64,
+}
+
+#[derive(Serialize, Deserialize)]
+struct SlInviteClaims {
+    pub room: Uuid,
+    pub exp: i64,
 }

@@ -35,6 +35,12 @@ pub enum AppErr {
 
     #[error("Permission denied")]
     PermissionDenied,
+
+    #[error("Not found")]
+    NotFound,
+
+    #[error("Already exists")]
+    Exists,
 }
 
 /// Error JSON structure for responses.

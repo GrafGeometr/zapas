@@ -171,3 +171,38 @@ pub struct SetRoomTimingDto {
     pub review_interval: Option<i64>,
     pub expired_notify: Option<i64>,
 }
+
+#[derive(Serialize, ToSchema)]
+pub struct MemberDto {
+    pub id: Uuid,
+    pub user_id: Option<Uuid>,
+    pub room_id: Uuid,
+
+    pub display_name: String,
+    pub bio: String,
+
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Serialize, ToSchema)]
+pub struct MemberOriginDto {
+    pub id: Uuid,
+    pub user_id: Option<Uuid>,
+    pub room_id: Uuid,
+
+    pub display_name: Option<String>,
+    pub bio: Option<String>,
+
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Deserialize, ToSchema, Validate)]
+pub struct SetMemberProfileDto {
+    pub display_name: Option<String>,
+    pub bio: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, ToSchema, Validate)]
+pub struct PortionsDto {
+    pub portions: i64,
+}

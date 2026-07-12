@@ -10,7 +10,9 @@ use axum::{
     middleware,
     routing::{get, post},
 };
+use chrono::Duration;
 use uuid::Uuid;
+use validator::Validate;
 
 pub fn make_app(app: App) -> Router {
     Router::new()
@@ -20,6 +22,9 @@ pub fn make_app(app: App) -> Router {
         .route("/{room_id}/profile", post(upd_profile))
         .route("/{room_id}/timing", post(set_room_timing))
         .route("/{room_id}/delete", post(delete_room))
+        .route("/{room_id}/members", get(all_members))
+        .route("/{room_id}/invite/gen", post(gen_invite))
+        .route("/invite/{token}", post(invite))
         .layer(middleware::from_fn_with_state(app.clone(), auth_middleware))
         .with_state(app)
 }
@@ -38,8 +43,9 @@ pub async fn make_room(
     Extension(user_id): Extension<Uuid>,
     Json(profile): Json<MakeRoomDto>,
 ) -> Result<Json<UuidDto>, AppErr> {
-    let room_id = Uuid::now_v7();
+    profile.validate()?;
 
+    let room_id = Uuid::now_v7();
     let mut tx = app.pool.begin().await.app_log()?;
 
     sqlx::query!(
@@ -71,7 +77,7 @@ pub async fn make_room(
     path = "/api/v1/room/{room_id}",
     tag = "rooms",
     responses(
-        (status = 200, body = UuidDto, description = "Rooms successfully created"),
+        (status = 200, body = RoomProfileDto, description = "Rooms successfully created"),
         (status = 401, body = AppErrJson, description = "Unathorized. Check prolongation"),
         (status = 403, body = AppErrJson, description = "Not a member"),
         (status = 500, body = AppErrJson, description = "Internal server error")
@@ -100,7 +106,7 @@ pub async fn room_profile(
     .fetch_optional(&app.pool)
     .await
     .app_log()?
-    .ok_or(AppErr::PermissionDenied)?;
+    .ok_or(AppErr::NotFound)?;
 
     Ok(Json(res.into()))
 }
@@ -162,6 +168,8 @@ pub async fn upd_profile(
     Path(room_id): Path<Uuid>,
     Json(profile): Json<UpdRoomProfileDto>,
 ) -> Result<Json<RoomProfileDto>, AppErr> {
+    profile.validate()?;
+
     let res = sqlx::query_as!(
         RoomProfileDb,
         r#"
@@ -186,7 +194,7 @@ pub async fn upd_profile(
     .fetch_optional(&app.pool)
     .await
     .app_log()?
-    .ok_or(AppErr::PermissionDenied)?;
+    .ok_or(AppErr::NotFound)?;
 
     Ok(Json(res.into()))
 }
@@ -206,6 +214,8 @@ pub async fn set_room_timing(
     Path(room_id): Path<Uuid>,
     Json(profile): Json<SetRoomTimingDto>,
 ) -> Result<Json<RoomProfileDto>, AppErr> {
+    profile.validate()?;
+
     let res = sqlx::query_as!(
         RoomProfileDb,
         r#"
@@ -230,7 +240,7 @@ pub async fn set_room_timing(
     .fetch_optional(&app.pool)
     .await
     .app_log()?
-    .ok_or(AppErr::PermissionDenied)?;
+    .ok_or(AppErr::NotFound)?;
 
     Ok(Json(res.into()))
 }
@@ -249,4 +259,116 @@ pub async fn delete_room(
     Path(_room_id): Path<Uuid>,
 ) -> Result<(), AppErr> {
     Err(AppErr::NotImplemented)
+}
+
+#[utoipa::path(get,
+    path = "/api/v1/room/{room_id}/members",
+    tag = "rooms",
+    params(
+        Pagination
+    ),
+    responses(
+        (status = 200, body = [MemberDto], description = "List of room memberships"),
+        (status = 401, body = AppErrJson, description = "Unathorized. Check prolongation"),
+        (status = 404, body = AppErrJson, description = "Room not found or user is not a member"),
+        (status = 500, body = AppErrJson, description = "Internal server error")
+    ))]
+pub async fn all_members(
+    State(app): State<App>,
+    Extension(user_id): Extension<Uuid>,
+    Path(room_id): Path<Uuid>,
+    Query(pag): Query<Pagination>,
+) -> Result<Json<Vec<MemberDto>>, AppErr> {
+    let res = sqlx::query_as!(
+        MemberDto,
+        r#"
+        select
+            v.id as "id!",
+            v.user_id,
+            v.room_id as "room_id!",
+            v.display_name as "display_name!",
+            v.bio as "bio!",
+            v.created_at as "created_at!"
+        from v_members as v
+        where v.room_id = $2 and exists (
+            select 1 from members where user_id = $1 and room_id = $2
+        )
+        order by v.created_at
+        offset $3 limit $4
+        "#,
+        user_id,
+        room_id,
+        pag.offset(),
+        pag.limit()
+    )
+    .fetch_all(&app.pool)
+    .await
+    .app_log()?;
+
+    if res.len() == 0 {
+        return Err(AppErr::NotFound);
+    }
+
+    Ok(Json(res.into_iter().map(|x| x.into()).collect()))
+}
+
+#[utoipa::path(post,
+    path = "/api/v1/room/{room_id}/invite/gen",
+    tag = "rooms",
+    responses(
+        (status = 200, body = TokenDto, description = "Invite token"),
+        (status = 401, body = AppErrJson, description = "Unathorized. Check prolongation"),
+        (status = 404, body = AppErrJson, description = "Room not found or user is not a member"),
+        (status = 500, body = AppErrJson, description = "Internal server error")
+    ))]
+pub async fn gen_invite(
+    State(app): State<App>,
+    Extension(user_id): Extension<Uuid>,
+    Path(room_id): Path<Uuid>,
+) -> Result<Json<TokenDto>, AppErr> {
+    sqlx::query!(
+        "select id from members where user_id = $1 and room_id = $2",
+        user_id,
+        room_id
+    )
+    .fetch_optional(&app.pool)
+    .await
+    .app_log()?
+    .ok_or(AppErr::NotFound)?;
+
+    let token = app.jwt.gen_sl_invite(room_id, Duration::minutes(10))?;
+
+    Ok(Json(TokenDto { token }))
+}
+
+#[utoipa::path(post,
+    path = "/api/v1/room/invite/{token}",
+    tag = "rooms",
+    responses(
+        (status = 200, body = UuidDto, description = "Successfully joined the room"),
+        (status = 401, body = AppErrJson, description = "Unathorized. Check prolongation"),
+        (status = 409, body = AppErrJson, description = "User is already a member or room not found"),
+        (status = 500, body = AppErrJson, description = "Internal server error")
+    ))]
+pub async fn invite(
+    State(app): State<App>,
+    Extension(user_id): Extension<Uuid>,
+    Path(token): Path<String>,
+) -> Result<Json<UuidDto>, AppErr> {
+    let token = app.jwt.parse_sl_invite(&token)?;
+
+    sqlx::query!(
+        r#"insert into members (id, user_id, room_id) values ($1, $2, $3)
+        on conflict (user_id, room_id) where user_id is not null do nothing
+        returning id"#,
+        Uuid::now_v7(),
+        user_id,
+        token.room
+    )
+    .fetch_optional(&app.pool)
+    .await
+    .app_log()?
+    .ok_or(AppErr::Exists)?;
+
+    Ok(Json(UuidDto { id: token.room }))
 }
