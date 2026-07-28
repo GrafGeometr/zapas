@@ -2,11 +2,14 @@ use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
 use uuid::Uuid;
-use validator::Validate;
+use validator::{Validate, ValidationError};
 
-#[derive(Serialize, Deserialize, IntoParams)]
+#[derive(Serialize, Validate, Deserialize, IntoParams)]
 pub struct Pagination {
+    #[validate(range(min = 0))]
     pub num: i64,
+
+    #[validate(range(min = 1, max = 10_000))]
     pub size: i64,
 }
 
@@ -22,7 +25,7 @@ impl Pagination {
 
 #[derive(Deserialize, Validate, ToSchema)]
 pub struct RegisterDto {
-    #[validate(length(min = 4, max = 63))]
+    #[validate(length(min = 4, max = 63), custom(function = "validate_username"))]
     #[schema(example = "bob_ross")]
     pub username: String,
 
@@ -38,7 +41,7 @@ pub struct RegisterDto {
     #[schema(example = "")]
     pub bio: String,
 
-    #[validate(length(min = 12, max = 255))]
+    #[validate(length(min = 0, max = 255))] // TODO
     #[schema(example = "super_password!67")]
     pub passwd: String,
 }
@@ -50,11 +53,11 @@ pub struct UuidDto {
 
 #[derive(Deserialize, Validate, ToSchema)]
 pub struct LoginDto {
-    // TODO
+    #[validate(length(min = 4, max = 63), custom(function = "validate_username"))]
     #[schema(example = "bob_ross")]
     pub username: String,
 
-    // TODO
+    #[validate(length(min = 0, max = 255))] // TODO
     #[schema(example = "super_password!67")]
     pub passwd: String,
 }
@@ -88,9 +91,16 @@ pub struct UserMeDto {
 
 #[derive(Deserialize, Validate, ToSchema)]
 pub struct MyProfileDto {
-    // TODO
+    #[validate(length(min = 4, max = 63), custom(function = "validate_username"))]
+    #[schema(example = "bob_ross")]
     pub username: Option<String>,
+
+    #[validate(length(min = 1, max = 127))]
+    #[schema(example = "bob ross")]
     pub display_name: Option<String>,
+
+    #[validate(length(max = 1023))]
+    #[schema(example = "")]
     pub bio: Option<String>,
 }
 
@@ -104,8 +114,10 @@ pub struct SessionDto {
 
 #[derive(Deserialize, Validate, ToSchema)]
 pub struct PasswdDto {
-    // TODO
+    #[validate(length(max = 255))]
     pub old_passwd: String,
+
+    #[validate(length(min = 0, max = 255))] // TODO
     pub passwd: String,
 }
 
@@ -117,8 +129,12 @@ pub struct EmailDto {
 
 #[derive(Deserialize, Validate, ToSchema)]
 pub struct MakeRoomDto {
-    // TODO
+    #[validate(length(min = 1, max = 127))]
+    #[schema(example = "502")]
     pub display_name: String,
+
+    #[validate(length(max = 1023))]
+    #[schema(example = "")]
     pub bio: String,
 }
 
@@ -162,13 +178,18 @@ impl From<RoomProfileDb> for RoomProfileDto {
 
 #[derive(Deserialize, Validate, ToSchema)]
 pub struct UpdRoomProfileDto {
+    #[validate(length(min = 1, max = 127))]
     pub display_name: Option<String>,
+
+    #[validate(length(max = 1023))]
     pub bio: Option<String>,
 }
 
 #[derive(Deserialize, Validate, ToSchema)]
 pub struct SetRoomTimingDto {
+    #[validate(range(min = 0))]
     pub review_interval: Option<i64>,
+    #[validate(range(min = 0))]
     pub expired_notify: Option<i64>,
 }
 
@@ -198,11 +219,26 @@ pub struct MemberOriginDto {
 
 #[derive(Deserialize, ToSchema, Validate)]
 pub struct SetMemberProfileDto {
+    #[validate(length(min = 1, max = 63))]
     pub display_name: Option<String>,
+
+    #[validate(length(max = 1023))]
     pub bio: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, ToSchema, Validate)]
 pub struct PortionsDto {
+    #[validate(range(min = 0))]
     pub portions: i64,
+}
+
+fn validate_username(username: &str) -> Result<(), ValidationError> {
+    if username
+        .chars()
+        .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
+    {
+        Ok(())
+    } else {
+        Err(ValidationError::new("invalid username chars"))
+    }
 }

@@ -127,6 +127,8 @@ pub async fn rooms(
     Extension(user_id): Extension<Uuid>,
     Query(pag): Query<Pagination>,
 ) -> Result<Json<Vec<RoomProfileDto>>, AppErr> {
+    pag.validate()?;
+
     let res = sqlx::query_as!(
         RoomProfileDb,
         r#"
@@ -279,6 +281,8 @@ pub async fn all_members(
     Path(room_id): Path<Uuid>,
     Query(pag): Query<Pagination>,
 ) -> Result<Json<Vec<MemberDto>>, AppErr> {
+    pag.validate()?;
+
     let res = sqlx::query_as!(
         MemberDto,
         r#"

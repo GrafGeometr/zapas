@@ -72,7 +72,9 @@ impl AppErr {
 
             AppErr::PermissionDenied => StatusCode::FORBIDDEN,
 
-            _ => StatusCode::INTERNAL_SERVER_ERROR,
+            AppErr::IntrSrvErr => StatusCode::INTERNAL_SERVER_ERROR,
+            AppErr::NotFound => StatusCode::NOT_FOUND,
+            AppErr::Exists => StatusCode::BAD_REQUEST,
         }
     }
 }
