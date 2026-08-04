@@ -1,7 +1,7 @@
 //! API v1.
 pub mod dto;
 pub mod member;
-pub mod middlewares;
+pub mod middleware;
 pub mod ping;
 pub mod room;
 pub mod user;

@@ -1,4 +1,4 @@
-use super::{dto::*, middlewares::*};
+use super::{dto::*, middleware::*};
 use crate::{
     app::App,
     domain::token::{AuthToken, ProlongRes, Session},

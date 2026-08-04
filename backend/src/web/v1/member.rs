@@ -2,7 +2,7 @@ use super::dto::*;
 use crate::{
     app::App,
     err::{AppErr, AppErrJson, ToAppErr},
-    web::v1::middlewares::auth_middleware,
+    web::v1::middleware::auth_middleware,
 };
 use axum::{
     Extension, Json, Router,
