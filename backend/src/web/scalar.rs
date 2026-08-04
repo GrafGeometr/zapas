@@ -29,6 +29,7 @@ use utoipa_scalar::{Scalar, Servable};
         crate::web::v1::room::all_members,
         crate::web::v1::room::gen_invite,
         crate::web::v1::room::invite,
+        crate::web::v1::room::make_storage,
         crate::web::v1::member::get_profile,
         crate::web::v1::member::get_origin_profile,
         crate::web::v1::member::delete,

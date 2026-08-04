@@ -242,3 +242,14 @@ fn validate_username(username: &str) -> Result<(), ValidationError> {
         Err(ValidationError::new("invalid username chars"))
     }
 }
+
+#[derive(Deserialize, Validate, ToSchema)]
+pub struct MakeStorageDto {
+    #[validate(length(min = 1, max = 127))]
+    #[schema(example = "fridge")]
+    pub display_name: String,
+
+    #[validate(length(max = 1023))]
+    #[schema(example = "")]
+    pub bio: String,
+}

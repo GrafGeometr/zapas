@@ -25,6 +25,7 @@ pub fn make_app(app: App) -> Router {
         .route("/{room_id}/members", get(all_members))
         .route("/{room_id}/invite/gen", post(gen_invite))
         .route("/invite/{token}", post(invite))
+        .route("/{room_id}/new_storage", post(make_storage))
         .layer(middleware::from_fn_with_state(app.clone(), auth_middleware))
         .with_state(app)
 }
@@ -376,3 +377,51 @@ pub async fn invite(
 
     Ok(Json(UuidDto { id: token.room }))
 }
+
+#[utoipa::path(post,
+    path = "/api/v1/room/{room_id}/new_storage",
+    tag = "storages",
+    request_body = MakeStorageDto,
+    responses(
+        (status = 200, body = UuidDto, description = "Storage successfully created"),
+        (status = 401, body = AppErrJson, description = "Unathorized. Check prolongation"),
+        (status = 500, body = AppErrJson, description = "Internal server error")
+    ))]
+pub async fn make_storage(
+    State(app): State<App>,
+    Extension(user_id): Extension<Uuid>,
+    Path(room_id): Path<Uuid>,
+    Json(profile): Json<MakeStorageDto>,
+) -> Result<Json<UuidDto>, AppErr> {
+    profile.validate()?;
+
+    let res = sqlx::query!(
+        r#"
+        insert into storages (id, room_id, display_name, bio)
+        select $1, m.room_id, $2, $3
+        from members as m
+        where m.user_id = $4 and m.room_id = $5
+        returning id
+        "#,
+        Uuid::now_v7(),
+        profile.display_name,
+        profile.bio,
+        user_id,
+        room_id
+    )
+    .fetch_optional(&app.pool)
+    .await
+    .app_log()?
+    .ok_or(AppErr::NotFound)?;
+
+    Ok(Json(UuidDto { id: res.id }))
+}
+
+// pub async fn all_storages(
+//     State(app): State<App>,
+//     Extension(user_id): Extension<Uuid>,
+//     Path(room_id): Path<Uuid>,
+//     Query(pag): Query<Pagination>,
+// ) -> Result<Json<Vec<()>>, AppErr> {
+//     todo!()
+// }
