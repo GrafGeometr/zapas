@@ -1,3 +1,4 @@
+//! Scalar route.
 use axum::Router;
 use utoipa::OpenApi;
 use utoipa_scalar::{Scalar, Servable};
@@ -39,6 +40,7 @@ use utoipa_scalar::{Scalar, Servable};
 )]
 struct ApiDoc;
 
+// Scalar route.
 pub fn make_app() -> Router {
     Router::new().merge(Scalar::with_url("/scalar", ApiDoc::openapi()))
 }

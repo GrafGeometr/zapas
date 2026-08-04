@@ -118,7 +118,7 @@ pub async fn room_profile(
         Pagination
     ),
     responses(
-        (status = 200, body = UuidDto, description = "Rooms successfully created"),
+        (status = 200, body = [UuidDto], description = "List of rooms"),
         (status = 401, body = AppErrJson, description = "Unathorized. Check prolongation"),
         (status = 500, body = AppErrJson, description = "Internal server error")
     ))]
