@@ -186,7 +186,7 @@ pub struct UpdRoomProfileDto {
 }
 
 #[derive(Deserialize, Validate, ToSchema)]
-pub struct SetRoomTimingDto {
+pub struct SetTimingDto {
     #[validate(range(min = 0))]
     pub review_interval: Option<i64>,
     #[validate(range(min = 0))]
@@ -291,4 +291,13 @@ impl From<StorageDb> for StorageDto {
             created_at: x.created_at,
         }
     }
+}
+
+#[derive(Deserialize, Validate, ToSchema)]
+pub struct UpdStorageProfileDto {
+    #[validate(length(min = 1, max = 127))]
+    pub display_name: Option<String>,
+
+    #[validate(length(max = 1023))]
+    pub bio: Option<String>,
 }

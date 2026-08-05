@@ -206,7 +206,7 @@ pub async fn upd_profile(
 #[utoipa::path(post,
     path = "/api/v1/room/{room_id}/timing",
     tag = "rooms",
-    request_body = SetRoomTimingDto,
+    request_body = SetTimingDto,
     responses(
         (status = 200, body = RoomProfileDto, description = "Successfully set timing for items"),
         (status = 401, body = AppErrJson, description = "Unathorized. Check prolongation"),
@@ -216,7 +216,7 @@ pub async fn set_room_timing(
     State(app): State<App>,
     Extension(user_id): Extension<Uuid>,
     Path(room_id): Path<Uuid>,
-    Json(profile): Json<SetRoomTimingDto>,
+    Json(profile): Json<SetTimingDto>,
 ) -> Result<Json<RoomProfileDto>, AppErr> {
     profile.validate()?;
 

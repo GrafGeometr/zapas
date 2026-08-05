@@ -4,6 +4,7 @@ pub mod member;
 pub mod middleware;
 pub mod ping;
 pub mod room;
+pub mod storage;
 pub mod user;
 
 use crate::app::App;
@@ -22,7 +23,11 @@ pub fn make_app(app: App) -> Router {
     let ping = ping::make_app();
     let user = Router::new().nest("/user", user::make_app(app.clone()));
     let member = Router::new().nest("/member", member::make_app(app.clone()));
+    let storage = Router::new().nest("/storage", storage::make_app(app.clone()));
     let room = Router::new().nest("/room", room::make_app(app));
 
-    Router::new().nest("/v1", ping.merge(user).merge(room).merge(member))
+    Router::new().nest(
+        "/v1",
+        ping.merge(user).merge(room).merge(member).merge(storage),
+    )
 }
