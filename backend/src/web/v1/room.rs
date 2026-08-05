@@ -26,6 +26,7 @@ pub fn make_app(app: App) -> Router {
         .route("/{room_id}/invite/gen", post(gen_invite))
         .route("/invite/{token}", post(invite))
         .route("/{room_id}/new_storage", post(make_storage))
+        .route("/{room_id}/storages", get(all_storages))
         .layer(middleware::from_fn_with_state(app.clone(), auth_middleware))
         .with_state(app)
 }
@@ -417,11 +418,53 @@ pub async fn make_storage(
     Ok(Json(UuidDto { id: res.id }))
 }
 
-// pub async fn all_storages(
-//     State(app): State<App>,
-//     Extension(user_id): Extension<Uuid>,
-//     Path(room_id): Path<Uuid>,
-//     Query(pag): Query<Pagination>,
-// ) -> Result<Json<Vec<()>>, AppErr> {
-//     todo!()
-// }
+#[utoipa::path(get,
+    path = "/api/v1/room/{room_id}/storages",
+    tag = "storages",
+    params(
+        Pagination
+    ),
+    responses(
+        (status = 200, body = [StorageDto], description = "List of room's storages"),
+        (status = 401, body = AppErrJson, description = "Unathorized. Check prolongation"),
+        (status = 404, body = AppErrJson, description = "Room not found or user is not a member"),
+        (status = 500, body = AppErrJson, description = "Internal server error")
+    ))]
+pub async fn all_storages(
+    State(app): State<App>,
+    Extension(user_id): Extension<Uuid>,
+    Path(room_id): Path<Uuid>,
+    Query(pag): Query<Pagination>,
+) -> Result<Json<Vec<StorageDto>>, AppErr> {
+    pag.validate()?;
+
+    let res = sqlx::query_as!(
+        StorageDb,
+        r#"
+        select
+            s.id,
+            s.room_id,
+            s.display_name,
+            s.bio,
+            s.review_interval,
+            s.expired_notify,
+            s.created_at
+        from storages as s
+        where s.room_id = $2 and exists (
+            select 1
+            from members as m
+            where m.user_id = $1 and m.room_id = $2
+        order by s.created_at
+        offset $3 limit $4
+        )"#,
+        user_id,
+        room_id,
+        pag.offset(),
+        pag.limit()
+    )
+    .fetch_all(&app.pool)
+    .await
+    .app_log()?;
+
+    Ok(Json(res.into_iter().map(|x| x.into()).collect()))
+}

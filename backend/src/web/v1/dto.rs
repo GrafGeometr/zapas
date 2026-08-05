@@ -253,3 +253,42 @@ pub struct MakeStorageDto {
     #[schema(example = "")]
     pub bio: String,
 }
+
+#[derive(Serialize, ToSchema)]
+pub struct StorageDto {
+    pub id: Uuid,
+    pub room_id: Uuid,
+    pub display_name: String,
+    pub bio: String,
+
+    pub review_interval: Option<Duration>,
+    pub expired_notify: Option<Duration>,
+
+    pub created_at: DateTime<Utc>,
+}
+
+pub struct StorageDb {
+    pub id: Uuid,
+    pub room_id: Uuid,
+    pub display_name: String,
+    pub bio: String,
+
+    pub review_interval: Option<i64>,
+    pub expired_notify: Option<i64>,
+
+    pub created_at: DateTime<Utc>,
+}
+
+impl From<StorageDb> for StorageDto {
+    fn from(x: StorageDb) -> Self {
+        Self {
+            id: x.id,
+            room_id: x.room_id,
+            display_name: x.display_name,
+            bio: x.bio,
+            review_interval: x.review_interval.map(|x| Duration::seconds(x)),
+            expired_notify: x.expired_notify.map(|x| Duration::seconds(x)),
+            created_at: x.created_at,
+        }
+    }
+}
