@@ -5,10 +5,11 @@ use crate::{
 };
 use axum::{
     Extension, Json, Router,
-    extract::{Path, State},
+    extract::{Path, Query, State},
     middleware::{self},
     routing::{get, post},
 };
+use chrono::Utc;
 use uuid::Uuid;
 use validator::Validate;
 
@@ -18,6 +19,8 @@ pub fn make_app(app: App) -> Router {
         .route("/{storage_id}/profile", post(upd_profile))
         .route("/{storage_id}/timing", post(set_storage_timing))
         .route("/{storage_id}/delete", post(delete_storage))
+        .route("/{storage_id}/new_item", post(make_item))
+        .route("/{storage_id}/items", get(all_items))
         .layer(middleware::from_fn_with_state(app.clone(), auth_middleware))
         .with_state(app)
 }
@@ -186,4 +189,146 @@ pub async fn delete_storage(
     .ok_or(AppErr::NotFound)?;
 
     Ok(())
+}
+
+#[utoipa::path(post,
+    path = "/api/v1/storage/{storage_id}/new_item",
+    tag = "items",
+    request_body = NewItemDto,
+    responses(
+        (status = 200, body = UuidDto, description = "Item successfully created"),
+        (status = 401, body = AppErrJson, description = "Unathorized. Check prolongation"),
+        (status = 500, body = AppErrJson, description = "Internal server error")
+    ))]
+pub async fn make_item(
+    State(app): State<App>,
+    Extension(user_id): Extension<Uuid>,
+    Path(storage_id): Path<Uuid>,
+    Json(profile): Json<NewItemDto>,
+) -> Result<Json<UuidDto>, AppErr> {
+    profile.validate()?;
+
+    let res = sqlx::query_as!(
+        UuidDto,
+        r#"
+        insert into items (
+            id,
+            storage_id,
+            display_name,
+            bio,
+            amount,
+            amount_type,
+            needed_review
+        ) select
+            $3,
+            $2,
+            $4,
+            $5,
+            0,
+            'none',
+            false
+        from storages as s
+        where check_member_exists($1, s.room_id)
+        returning id
+        "#,
+        user_id,
+        storage_id,
+        Uuid::now_v7(),
+        profile.display_name,
+        profile.bio,
+    )
+    .fetch_optional(&app.pool)
+    .await
+    .app_log()?
+    .ok_or(AppErr::NotFound)?;
+
+    Ok(Json(res))
+}
+
+#[utoipa::path(get,
+    path = "/api/v1/storage/{storage_id}/items",
+    tag = "items",
+    params(
+        ItemFindPagination
+    ),
+    responses(
+        (status = 200, body = [ItemDto], description = "List of items in storage"),
+        (status = 401, body = AppErrJson, description = "Unathorized. Check prolongation"),
+        (status = 404, body = AppErrJson, description = "Storage not found or user is not a member"),
+        (status = 500, body = AppErrJson, description = "Internal server error")
+    ))]
+pub async fn all_items(
+    State(app): State<App>,
+    Extension(user_id): Extension<Uuid>,
+    Path(storage_id): Path<Uuid>,
+    Query(pag): Query<ItemFindPagination>,
+) -> Result<Json<Vec<ItemDto>>, AppErr> {
+    use crate::domain::search::*;
+    pag.validate()?;
+
+    let mut res = sqlx::query_as!(
+        ItemDto,
+        r#"
+        select
+            id,
+            storage_id,
+            display_name,
+            bio,
+            amount,
+            amount_type,
+            review_interval,
+            needed_review,
+            last_review_at,
+            expired_notify,
+            expired_at,
+            created_at
+        from items as i
+        where i.storage_id = storage_id and check_sm_exists($1, $2)"#,
+        user_id,
+        storage_id
+    )
+    .fetch_all(&app.pool)
+    .await
+    .app_log()?;
+
+    match pag.filter {
+        ItemFindFilter::All => {}
+
+        ItemFindFilter::NoneOnly => {
+            res = res
+                .into_iter()
+                .filter(|x| x.amount_type == "none")
+                .collect();
+        }
+
+        ItemFindFilter::NotNoneOnly => {
+            res = res
+                .into_iter()
+                .filter(|x| x.amount_type != "none")
+                .collect();
+        }
+
+        ItemFindFilter::ReviewOnly => res = res.into_iter().filter(|x| x.needed_review).collect(),
+
+        ItemFindFilter::ExpiredOnly => {
+            let now = Utc::now();
+            res = res
+                .into_iter()
+                .filter(|x| {
+                    if let Some(exp) = x.expired_at {
+                        now >= exp
+                    } else {
+                        false
+                    }
+                })
+                .collect();
+        }
+    }
+
+    sort_array(&pag.search, &mut res);
+    if res.len() > pag.limit as usize {
+        res.truncate(pag.limit as usize);
+    }
+
+    Ok(Json(res))
 }

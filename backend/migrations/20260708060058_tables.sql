@@ -113,6 +113,7 @@ create table items (
 
     review_interval bigint null, -- null -> default, 0 -> нет, иначе значение.
     needed_review bool not null,
+    last_review_at timestamptz not null,
 
     expired_notify bigint null, -- null -> default, 0 -> нет, иначе значение.
     expired_at timestamptz null,

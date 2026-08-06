@@ -301,3 +301,64 @@ pub struct UpdStorageProfileDto {
     #[validate(length(max = 1023))]
     pub bio: Option<String>,
 }
+
+#[derive(Deserialize, Validate, ToSchema)]
+pub struct NewItemDto {
+    #[validate(length(min = 1, max = 127))]
+    pub display_name: String,
+
+    #[validate(length(max = 1023))]
+    pub bio: String,
+}
+
+#[derive(Serialize, ToSchema)]
+pub struct ItemDto {
+    pub id: Uuid,
+    pub storage_id: Uuid,
+
+    pub display_name: String,
+    pub bio: String,
+
+    pub amount: i64,
+    pub amount_type: String,
+
+    pub review_interval: Option<i64>,
+    pub needed_review: bool,
+    pub last_review_at: DateTime<Utc>,
+
+    pub expired_notify: Option<i64>,
+    pub expired_at: Option<DateTime<Utc>>,
+
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Deserialize, Validate, ToSchema)] // TODO validate
+pub struct ReviewDto {
+    pub amount: i64,
+    pub amount_type: String,
+    pub expired_at: Option<DateTime<Utc>>,
+}
+
+#[derive(Deserialize, ToSchema)]
+pub enum ItemFindFilter {
+    All,
+    NoneOnly,
+    NotNoneOnly,
+    ReviewOnly,
+    ExpiredOnly,
+}
+
+#[derive(Deserialize, Validate, IntoParams)] // TODO validate
+pub struct ItemFindPagination {
+    pub search: String,
+
+    pub filter: ItemFindFilter,
+
+    pub limit: i64,
+}
+
+impl crate::domain::search::SearchTrigramItem for ItemDto {
+    fn gen_trigram(&self, res: &mut crate::domain::search::Grams) {
+        self.display_name.gen_trigram(res);
+    }
+}

@@ -41,6 +41,14 @@ use utoipa_scalar::{Scalar, Servable};
         crate::web::v1::storage::upd_profile,
         crate::web::v1::storage::set_storage_timing,
         crate::web::v1::storage::delete_storage,
+        crate::web::v1::storage::make_item,
+        crate::web::v1::storage::all_items,
+        crate::web::v1::item::get_profile,
+        crate::web::v1::item::upd_profile,
+        crate::web::v1::item::set_timing,
+        crate::web::v1::item::need_review,
+        crate::web::v1::item::review,
+        crate::web::v1::item::delete_item,
     ),
     info(title = "Zapas API")
 )]
