@@ -10,14 +10,9 @@ import androidx.core.content.edit
 class SharedPreferencesStorage(
     private val context: Context
 ) : KeyValueStorage {
-
-    // Используем lazy для создания SharedPreferences
     private val prefs: SharedPreferences by lazy {
         context.getSharedPreferences("app_storage", Context.MODE_PRIVATE)
     }
-
-    // Все методы делаем suspend, но внутри используем Dispatchers.IO
-    // для работы с диском в фоновом потоке
 
     override suspend fun saveString(key: String, value: String) {
         withContext(Dispatchers.IO) {

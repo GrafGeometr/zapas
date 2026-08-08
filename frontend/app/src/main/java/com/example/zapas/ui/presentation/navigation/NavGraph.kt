@@ -1,16 +1,13 @@
 package com.example.zapas.ui.presentation.navigation
 
 import androidx.compose.runtime.Composable
-import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.navArgument
 import com.example.zapas.ui.presentation.screens.auth.LoginScreen
 import com.example.zapas.ui.presentation.screens.auth.RegisterScreen
-import com.example.zapas.ui.presentation.screens.auth.RegisterStep1Screen
-import com.example.zapas.ui.presentation.screens.auth.RegisterStep2Screen
-import com.example.zapas.ui.presentation.screens.main.MainScreen
+import com.example.zapas.ui.presentation.screens.profile.ProfileScreen
+import com.example.zapas.ui.presentation.screens.rooms.RoomsScreen
 import com.example.zapas.ui.presentation.screens.splash.SplashScreen
 
 
@@ -32,7 +29,7 @@ fun ZapasNavGraph(
                     }
                 },
                 onNavigateToMain = {
-                    navController.navigate(Destinations.MAIN) {
+                    navController.navigate(Destinations.ROOMS) {
                         popUpTo(Destinations.SPLASH) { inclusive = true }
                     }
                 }
@@ -42,20 +39,19 @@ fun ZapasNavGraph(
 
         composable(Destinations.LOGIN) {
             LoginScreen(onLoginSuccess = {
-                navController.navigate(Destinations.MAIN) {
+                navController.navigate(Destinations.ROOMS) {
                     popUpTo(Destinations.LOGIN) { inclusive = true }
                 }
             }, onNavigateToRegister = {
-                navController.navigate(Destinations.REGISTER_STEP1)
+                navController.navigate(Destinations.REGISTER)
             })
         }
 
-        composable(Destinations.REGISTER_STEP1) {
+        composable(Destinations.REGISTER) {
             RegisterScreen(
                 onRegisterComplete = {
-                    // После регистрации возвращаемся на экран логина
-                    navController.navigate("login") {
-                        popUpTo("register") { inclusive = true }
+                    navController.navigate(Destinations.ROOMS) {
+                        popUpTo(Destinations.LOGIN) { inclusive = true }
                     }
                 },
                 onBack = {
@@ -64,26 +60,12 @@ fun ZapasNavGraph(
             )
         }
 
-        composable(
-            route = Destinations.REGISTER_STEP2,
-            arguments = listOf(
-                navArgument("username") { type = NavType.StringType },
-                navArgument("password") { type = NavType.StringType })
-        ) { backStackEntry ->
-            val username = backStackEntry.arguments?.getString("username") ?: ""
-            val password = backStackEntry.arguments?.getString("password") ?: ""
-
-            RegisterStep2Screen(username = username, password = password, onRegisterComplete = {
-                navController.navigate(Destinations.MAIN) {
-                    popUpTo(0)
-                }
-            }, onBack = {
-                navController.popBackStack()
-            })
+        composable(Destinations.ROOMS) {
+            RoomsScreen()
         }
 
-        composable(Destinations.MAIN) {
-            MainScreen(
+        composable(Destinations.PROFILE) {
+            ProfileScreen(
                 onLogout = {
                     navController.navigate(Destinations.LOGIN) {
                         popUpTo(0)

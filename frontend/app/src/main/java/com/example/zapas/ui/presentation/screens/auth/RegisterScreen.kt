@@ -49,6 +49,7 @@ fun RegisterScreen(
     var currentStep by remember { mutableIntStateOf(1) }
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var bio by remember { mutableStateOf("") }
 
     val registerState by viewModel.registerState.collectAsState()
 
@@ -70,6 +71,8 @@ fun RegisterScreen(
         2 -> RegisterStep2Screen(
             username = username,
             password = password,
+            bio = bio,
+            onBioChange = { bio = it },
             onRegisterComplete = onRegisterComplete,
             onBack = { currentStep = 1 },
             viewModel = viewModel
@@ -187,6 +190,8 @@ fun RegisterStep1Screen(
 fun RegisterStep2Screen(
     username: String,
     password: String,
+    bio: String,
+    onBioChange: (String) -> Unit,
     onRegisterComplete: () -> Unit,
     onBack: () -> Unit,
     viewModel: AuthViewModel = hiltViewModel()
@@ -252,6 +257,16 @@ fun RegisterStep2Screen(
             isError = registerState is RegisterState.Error
         )
 
+        Spacer(modifier = Modifier.height(16.dp))
+
+        OutlinedTextField(
+            value = bio,
+            onValueChange = onBioChange,
+            label = { Text("О себе") },
+            modifier = Modifier.fillMaxWidth(),
+            isError = registerState is RegisterState.Error
+        )
+
         if (registerState is RegisterState.Error) {
             Spacer(modifier = Modifier.height(8.dp))
             Text(
@@ -266,7 +281,7 @@ fun RegisterStep2Screen(
         Button(
             onClick = {
                 if (displayName.isNotBlank()) {
-                    viewModel.register(username, password, displayName)
+                    viewModel.register(username, password, displayName, bio)
                 }
             },
             modifier = Modifier.fillMaxWidth(),

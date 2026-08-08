@@ -10,7 +10,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
-class SplashViewModel @Inject constructor(
+class LoadingStatusViewModel @Inject constructor(
     private val checkAuthStatusUseCase: CheckAuthStatusUseCase
 ) : ViewModel() {
 

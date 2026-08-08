@@ -10,13 +10,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.example.zapas.ui.presentation.viewmodels.splash.SplashViewModel
+import com.example.zapas.ui.presentation.viewmodels.splash.LoadingStatusViewModel
 
 @Composable
 fun SplashScreen(
     onNavigateToLogin: () -> Unit,
     onNavigateToMain: () -> Unit,
-    viewModel: SplashViewModel = hiltViewModel()
+    viewModel: LoadingStatusViewModel = hiltViewModel()
 ) {
     // Собираем состояние как State
     val isAuthenticated by viewModel.isAuthenticated.collectAsState()

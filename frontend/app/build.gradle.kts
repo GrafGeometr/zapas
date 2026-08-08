@@ -1,9 +1,10 @@
 // app/build.gradle.kts
 plugins {
-    id("com.android.application")
-    id("org.jetbrains.kotlin.android")
-    id("com.google.dagger.hilt.android")
-    id("org.jetbrains.kotlin.kapt")
+    alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.hilt.android)
+    alias(libs.plugins.ksp)
+    alias(libs.plugins.kotlin.compose)
 }
 
 android {
@@ -24,7 +25,7 @@ android {
             useSupportLibrary = true
         }
 
-        buildConfigField("String", "API_BASE_URL", "\"https://api.server.com/\"")
+        buildConfigField("String", "API_BASE_URL", "\"https://yazorinv.duckdns.org/api/v1/\"")
     }
 
     buildTypes {
@@ -41,7 +42,7 @@ android {
 
         debug {
             buildConfigField("boolean", "IS_DEBUG", "true")
-            buildConfigField("String", "API_BASE_URL", "\"http://localhost:8000/api/v1/\"")
+            buildConfigField("String", "API_BASE_URL", "\"https://yazorinv.duckdns.org/api/v1/\"")
         }
     }
 
@@ -57,10 +58,6 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
-    }
-
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.11"  // Обновлено для совместимости
     }
 
     packaging {
@@ -88,14 +85,14 @@ dependencies {
 
     // Hilt
     implementation(libs.hilt.android)
-    kapt(libs.hilt.compiler)
+    ksp(libs.hilt.compiler)
     implementation(libs.androidx.hilt.navigation.compose)
 
     // Network
     implementation(libs.retrofit)
     implementation(libs.retrofit.converter.moshi)
     implementation(libs.moshi.kotlin)
-    kapt(libs.moshi.kotlin.codegen)  // Для генерации адаптеров Moshi
+    ksp(libs.moshi.kotlin.codegen)  // Для генерации адаптеров Moshi
     implementation(libs.okhttp)
     implementation(libs.okhttp.logging.interceptor)
 
@@ -104,6 +101,9 @@ dependencies {
 
     // DataStore
     implementation(libs.androidx.datastore.preferences)
+
+    // Arrow
+    implementation(libs.arrow.core)
 
     // Testing
     testImplementation(libs.junit)
@@ -115,10 +115,6 @@ dependencies {
     debugImplementation(libs.androidx.ui.test.manifest)
 
     // Hilt testing
-    kaptTest(libs.hilt.compiler)
-    kaptAndroidTest(libs.hilt.compiler)
-}
-
-kapt {
-    correctErrorTypes = true
+    kspTest(libs.hilt.compiler)
+    kspAndroidTest(libs.hilt.compiler)
 }

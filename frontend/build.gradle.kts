@@ -1,13 +1,15 @@
 // build.gradle.kts (project level)
 plugins {
-    id("com.android.application") version "8.3.1" apply false  // Обновлено
-    id("org.jetbrains.kotlin.android") version "1.9.23" apply false  // Обновлено
-    id("com.google.dagger.hilt.android") version "2.51" apply false
-    id("org.jetbrains.kotlin.kapt") version "1.9.23" apply false  // Обновлено
+    alias(libs.plugins.android.application) apply false
+    alias(libs.plugins.kotlin.android) apply false
+    alias(libs.plugins.hilt.android) apply false
+    alias(libs.plugins.ksp) apply false
+    alias(libs.plugins.kotlin.compose) apply false
 }
 
-buildscript {  // Добавьте этот блок
+buildscript {
     dependencies {
-        classpath("com.google.dagger:hilt-android-gradle-plugin:2.51")
+        // Hilt classpath is still needed for some configurations, but we've updated its version in TOML
+        classpath("com.google.dagger:hilt-android-gradle-plugin:2.57.2")
     }
 }

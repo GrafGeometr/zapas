@@ -2,13 +2,13 @@ package com.example.zapas.ui.presentation.viewmodels.auth
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import arrow.core.Either
+import com.example.zapas.domain.models.AppError
 import com.example.zapas.domain.usecase.auth.CheckAuthStatusUseCase
 import com.example.zapas.domain.usecase.auth.LoginParams
-import com.example.zapas.domain.usecase.auth.LoginResult
 import com.example.zapas.domain.usecase.auth.LoginUseCase
 import com.example.zapas.domain.usecase.auth.LogoutUseCase
 import com.example.zapas.domain.usecase.auth.RegisterParams
-import com.example.zapas.domain.usecase.auth.RegisterResult
 import com.example.zapas.domain.usecase.auth.RegisterUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -36,26 +36,20 @@ class AuthViewModel @Inject constructor(
         viewModelScope.launch {
             _loginState.value = LoginState.Loading
 
-            val result = loginUseCase(LoginParams(username, password))
-
-            _loginState.value = if (result is LoginResult.Success) {
-                LoginState.Success
-            } else {
-                LoginState.Error("Не удалось войти")
+            when (val result = loginUseCase(LoginParams(username, password))) {
+                is Either.Right -> _loginState.value = LoginState.Success
+                is Either.Left -> _loginState.value = LoginState.Error(result.value.toUserMessage())
             }
         }
     }
 
-    fun register(username: String, password: String, display_name: String) {
+    fun register(username: String, password: String, displayName: String, bio: String) {
         viewModelScope.launch {
             _registerState.value = RegisterState.Loading
 
-            val result = registerUseCase(RegisterParams(username, password, display_name))
-
-            _registerState.value = if (result is RegisterResult.Success) {
-                RegisterState.Success
-            } else {
-                RegisterState.Error("Не удалось зарегистрироваться")
+            when (val result = registerUseCase(RegisterParams(username, password, displayName, bio))) {
+                is Either.Right -> _registerState.value = RegisterState.Success
+                is Either.Left -> _registerState.value = RegisterState.Error(result.value.toUserMessage())
             }
         }
     }
@@ -67,6 +61,18 @@ class AuthViewModel @Inject constructor(
     fun logout() {
         viewModelScope.launch {
             logoutUseCase()
+        }
+    }
+
+    private fun AppError.toUserMessage(): String {
+        return when (this) {
+            is AppError.ApiError -> when (code) {
+                401 -> "Неверный логин или пароль"
+                409 -> "Пользователь с таким именем уже существует"
+                else -> message
+            }
+            is AppError.NetworkError -> "Ошибка сети. Проверьте подключение к интернету"
+            is AppError.UnknownError -> message ?: "Произошла неизвестная ошибка"
         }
     }
 }

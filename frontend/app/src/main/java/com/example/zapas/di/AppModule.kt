@@ -33,7 +33,7 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideAuthInterceptor(tokenManager: TokenManager, authRepository: AuthRepository): AuthInterceptor {
+    fun provideAuthInterceptor(tokenManager: TokenManager, authRepository: dagger.Lazy<AuthRepository>): AuthInterceptor {
         return AuthInterceptor(tokenManager, authRepository)
     }
 

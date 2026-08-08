@@ -1,9 +1,9 @@
 package com.example.zapas.data.api
 
-import com.example.zapas.data.api.dto.request.AuthAccessRequestDto
+import arrow.core.Either
 import com.example.zapas.data.local.TokenManager
-import com.example.zapas.domain.models.Token
 import com.example.zapas.domain.repository.AuthRepository
+import dagger.Lazy
 import kotlinx.coroutines.runBlocking
 import okhttp3.Interceptor
 import okhttp3.Request
@@ -11,9 +11,8 @@ import okhttp3.Response
 import javax.inject.Inject
 
 class AuthInterceptor @Inject constructor(
-    private val tokenManager: TokenManager, private val authRepository: AuthRepository
+    private val tokenManager: TokenManager, private val authRepository: Lazy<AuthRepository>
 ) : Interceptor {
-
     override fun intercept(chain: Interceptor.Chain): Response {
         val originalRequest = chain.request()
 
@@ -21,56 +20,35 @@ class AuthInterceptor @Inject constructor(
             return chain.proceed(originalRequest)
         }
 
-        val accessToken = runBlocking { tokenManager.getAccessToken() }
-        val requestWithToken = if (accessToken != null) {
-            originalRequest.newBuilder().header("Authorization", "Bearer ${accessToken.value}")
-                .build()
-        } else {
-            originalRequest
-        }
+        val requestWithToken = originalRequest.withBasicToken() ?: originalRequest
 
         val response = chain.proceed(requestWithToken)
 
-        if (response.code == 401 && !originalRequest.url.encodedPath.contains("/auth/")) {
+        if (response.code == 401 && !originalRequest.url.encodedPath.contains("/user/")) {
             response.close()
 
-            val newAccessToken = runBlocking { refreshAccessToken() }
+            val success = runBlocking { authRepository.get().prolong() is Either.Right }
 
-            if (newAccessToken != null) {
-                val newRequest =
-                    originalRequest.newBuilder().header("Authorization", "Bearer $newAccessToken")
-                        .build()
-                return chain.proceed(newRequest)
-            } else {
-                runBlocking { tokenManager.clearTokens() }
+            if (success) {
+                val newRequest = originalRequest.withBasicToken()
+
+                if (newRequest != null) {
+                    return chain.proceed(newRequest)
+                }
             }
+
+            runBlocking { tokenManager.clearTokens() }
         }
 
         return response
     }
 
-    private suspend fun refreshAccessToken(): String? {
-        val refreshToken = tokenManager.getRefreshToken() ?: return null
-
-        try {
-            val refreshSuccess =
-                authRepository.refreshRefreshToken(refreshToken = refreshToken.value)
-            if (!refreshSuccess) return null
-
-            val newRefreshToken = tokenManager.getRefreshToken() ?: return null
-            authRepository.refreshAccessToken(refreshToken = newRefreshToken.value)
-
-            return tokenManager.getAccessToken()?.value
-
-        } catch (e: Exception) {
-            return null
-        }
+    private fun Request.withBasicToken() = runBlocking { tokenManager.getBasicToken() }?.let {
+        newBuilder().header("Authorization", "Bearer ${it.value}").build()
     }
 
     private fun shouldSkipAuth(request: Request): Boolean {
         val path = request.url.encodedPath
-        return path.contains("/auth/login") || path.contains("/auth/create") || path.contains("/auth/access") || path.contains(
-            "/auth/refresh"
-        )
+        return path.contains("/user/login") || path.contains("/user/register") || path.contains("/user/prolong")
     }
 }
