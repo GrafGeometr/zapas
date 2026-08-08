@@ -61,7 +61,11 @@ fun ZapasNavGraph(
         }
 
         composable(Destinations.ROOMS) {
-            RoomsScreen()
+            RoomsScreen(
+                onNavigateToProfile = {
+                    navController.navigate(Destinations.PROFILE)
+                }
+            )
         }
 
         composable(Destinations.PROFILE) {
@@ -70,7 +74,11 @@ fun ZapasNavGraph(
                     navController.navigate(Destinations.LOGIN) {
                         popUpTo(0)
                     }
-                })
+                },
+                onBack = {
+                    navController.popBackStack()
+                }
+            )
         }
     }
 }

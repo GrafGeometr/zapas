@@ -1,13 +1,13 @@
 package com.example.zapas.domain.usecase.auth
 
-import com.example.zapas.domain.repository.AuthRepository
+import com.example.zapas.domain.repository.UserRepository
 import com.example.zapas.domain.usecase.NoParamsUseCase
 import javax.inject.Inject
 
 class LogoutUseCase @Inject constructor(
-    private val authRepository: AuthRepository
+    private val userRepository: UserRepository
 ) : NoParamsUseCase<Unit>() {
     override suspend fun invoke() {
-        authRepository.logout()
+        userRepository.logout()
     }
 }

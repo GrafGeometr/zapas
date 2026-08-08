@@ -55,13 +55,4 @@ class AuthRepositoryImpl @Inject constructor(
     override suspend fun isLoggedIn(): Boolean {
         return tokenManager.hasToken()
     }
-
-    override suspend fun logout() {
-        try {
-            authApi.logout()
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-        tokenManager.clearTokens()
-    }
 }

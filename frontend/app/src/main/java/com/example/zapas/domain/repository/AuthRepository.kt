@@ -13,6 +13,5 @@ interface AuthRepository {
     ): Either<AppError, Unit>
 
     suspend fun prolong(): Either<AppError, Unit>
-    suspend fun logout()
     suspend fun isLoggedIn(): Boolean
 }
