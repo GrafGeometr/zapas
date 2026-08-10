@@ -2,9 +2,14 @@ use crate::app::App;
 use std::time::Duration;
 use tracing::{error, info};
 
-pub async fn item_review_timer(app: App) {
+pub fn start_background_tasks(app: App) {
+    tokio::spawn(item_review_timer(app.clone()));
+    tokio::spawn(set_default_portion(app.clone()));
+}
+
+async fn item_review_timer(app: App) {
     loop {
-        tokio::time::sleep(Duration::from_secs(600)).await;
+        tokio::time::sleep(Duration::from_secs(30 * 60)).await;
 
         let res = sqlx::query!(
             r#"
@@ -40,6 +45,32 @@ pub async fn item_review_timer(app: App) {
             }
             Ok(cnt) => {
                 info!("Update {} items review", cnt.rows_affected());
+            }
+        }
+    }
+}
+
+async fn set_default_portion(app: App) {
+    loop {
+        tokio::time::sleep(Duration::from_secs(4 * 60 * 60)).await;
+
+        let res = sqlx::query!(
+            r#"
+            insert into portions (member_id, portion_date, cnt)
+            select m.id, now()::date, m.default_portions
+            from members as m
+            where m.default_portions != 0
+            on conflict (member_id, portion_date) do nothing"#
+        )
+        .execute(&app.pool)
+        .await;
+
+        match res {
+            Err(e) => {
+                error!("Error set default portions {}", e);
+            }
+            Ok(cnt) => {
+                info!("New day and portions {}", cnt.rows_affected())
             }
         }
     }

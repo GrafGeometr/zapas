@@ -15,6 +15,8 @@ use axum::Router;
 ///
 /// Returns an error if binding to the socket fails or starting the server fails.
 pub async fn server(app: App) -> Result<(), Box<dyn std::error::Error>> {
+    crate::repo::background::start_background_tasks(app.clone());
+
     let listener = tokio::net::TcpListener::bind("127.0.0.1:9000").await?;
     axum::serve(listener, make_app(app)).await?;
 

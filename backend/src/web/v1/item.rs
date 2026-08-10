@@ -14,8 +14,6 @@ use uuid::Uuid;
 use validator::Validate;
 
 pub fn make_app(app: App) -> Router {
-    tokio::spawn(crate::repo::item_timer::item_review_timer(app.clone()));
-
     Router::new()
         .route("/{item_id}", get(get_profile))
         .route("/{item_id}/profile", post(upd_profile))

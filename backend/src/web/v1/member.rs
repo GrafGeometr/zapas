@@ -21,6 +21,7 @@ pub fn make_app(app: App) -> Router {
         .route("/{member_id}/profile", post(set_profile))
         .route("/{member_id}/default_portions", get(get_def_portions))
         .route("/{member_id}/default_portions", post(set_def_portions))
+        .route("/{member_id}/portion", post(set_portion))
         .layer(middleware::from_fn_with_state(app.clone(), auth_middleware))
         .with_state(app)
 }
@@ -240,4 +241,82 @@ pub async fn set_def_portions(
     .ok_or(AppErr::NotFound)?;
 
     Ok(())
+}
+
+#[utoipa::path(post,
+    path = "/api/v1/member/{member_id}/portion",
+    tag = "portions",
+    request_body = PortionDateDto,
+    responses(
+        (status = 200, description = "..."),
+        (status = 401, body = AppErrJson, description = "Unathorized. Check prolongation"),
+        (status = 404, body = AppErrJson, description = "Member not found or you are not in the same room"),
+        (status = 500, body = AppErrJson, description = "Internal server error")
+    ))]
+pub async fn set_portion(
+    State(app): State<App>,
+    Extension(user_id): Extension<Uuid>,
+    Path(member_id): Path<Uuid>,
+    Json(port): Json<PortionDateDto>,
+) -> Result<(), AppErr> {
+    port.validate()?;
+
+    // TODO for roomates?
+    sqlx::query!(
+        r#"
+        insert into portions (member_id, portion_date, cnt)
+        select m.id, $3, $4
+        from members as m
+        where m.user_id = $1 and m.id = $2
+        on conflict (member_id, portion_date)
+        do update set
+            cnt = excluded.cnt
+        returning member_id"#,
+        user_id,
+        member_id,
+        port.date,
+        port.portions
+    )
+    .fetch_optional(&app.pool)
+    .await
+    .app_log()?
+    .ok_or(AppErr::NotFound)?;
+
+    Ok(())
+}
+
+pub async fn portion_calendar(
+    State(app): State<App>,
+    Extension(user_id): Extension<Uuid>,
+    Path(member_id): Path<Uuid>,
+    Json(seq): Json<TwoDate>,
+) -> Result<Json<Vec<PortionDateDto>>, AppErr> {
+    seq.validate()?;
+
+    // TODO for roomates
+    let res = sqlx::query_as!(
+        PortionDateDto,
+        r#"
+        select
+            p.cnt as portions,
+            p.portion_date as date
+        from portions as p
+        where
+            p.member_id = $2 and
+            $3::date <= p.portion_date and
+            p.portion_date <= $4::date and
+            exists (
+                select 1 from members as m
+                where m.user_id = $1 and m.room_id = $2
+        )"#,
+        user_id,
+        member_id,
+        seq.begin,
+        seq.end
+    )
+    .fetch_all(&app.pool)
+    .await
+    .app_log()?;
+
+    Ok(Json(res))
 }

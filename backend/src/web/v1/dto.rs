@@ -1,4 +1,4 @@
-use chrono::{DateTime, Duration, Utc};
+use chrono::{DateTime, Duration, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
 use utoipa::{IntoParams, ToSchema};
@@ -360,7 +360,8 @@ pub struct ItemDto {
     pub created_at: DateTime<Utc>,
 }
 
-#[derive(Deserialize, Validate, ToSchema)] // TODO validate
+#[derive(Deserialize, Validate, ToSchema)]
+#[validate(schema(function = "review_dto_check"))]
 pub struct ReviewDto {
     #[validate(range(min = 0))]
     pub amount: i64,
@@ -368,6 +369,21 @@ pub struct ReviewDto {
     pub amount_type: AmountType,
 
     pub expired_at: Option<DateTime<Utc>>,
+}
+
+fn review_dto_check(x: &ReviewDto) -> Result<(), validator::ValidationError> {
+    use validator::ValidationError;
+
+    match x.amount_type {
+        AmountType::None | AmountType::Few | AmountType::Mid | AmountType::Many => {
+            if x.amount != 0 {
+                Err(ValidationError::new("amount not 0 with amount_type"))
+            } else {
+                Ok(())
+            }
+        }
+        _ => Ok(()),
+    }
 }
 
 #[derive(Deserialize, ToSchema)]
@@ -380,12 +396,14 @@ pub enum ItemFindFilter {
     ExpiredOnly,
 }
 
-#[derive(Deserialize, Validate, IntoParams)] // TODO validate
+#[derive(Deserialize, Validate, IntoParams)]
 pub struct ItemFindPagination {
+    #[validate(length(max = 127))]
     pub search: String,
 
     pub filter: ItemFindFilter,
 
+    #[validate(range(min = 1, max = 10_000))]
     pub limit: i64,
 }
 
@@ -426,5 +444,28 @@ impl ItemFindPagination {
 impl crate::domain::search::SearchTrigramItem for ItemDto {
     fn gen_ngram(&self, res: &mut crate::domain::search::Ngrams) {
         self.display_name.gen_ngram(res);
+    }
+}
+
+#[derive(Serialize, Deserialize, ToSchema, Validate)]
+pub struct PortionDateDto {
+    #[validate(range(min = 0))]
+    pub portions: i64,
+
+    pub date: NaiveDate,
+}
+
+#[derive(Deserialize, ToSchema, Validate)]
+#[validate(schema(function = "check_two_date"))]
+pub struct TwoDate {
+    pub begin: NaiveDate,
+    pub end: NaiveDate,
+}
+
+fn check_two_date(x: &TwoDate) -> Result<(), validator::ValidationError> {
+    if x.begin > x.end {
+        Err(validator::ValidationError::new("invalid seq"))
+    } else {
+        Ok(())
     }
 }
