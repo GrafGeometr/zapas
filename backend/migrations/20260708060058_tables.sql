@@ -98,6 +98,9 @@ create table storages (
 );
 
 
+create type amount_tp as enum ('none', 'few', 'mid', 'many', 'g', 'ml', 'pcs');
+
+
 -- Продукты внутри комнаты.
 create table items (
     id uuid not null,
@@ -109,7 +112,7 @@ create table items (
 
 
     amount bigint not null,
-    amount_type text not null,
+    amount_type amount_tp not null,
 
     review_interval bigint null, -- null -> default, 0 -> нет, иначе значение.
     needed_review bool not null,

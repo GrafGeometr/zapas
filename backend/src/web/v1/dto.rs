@@ -1,5 +1,6 @@
 use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
+use sqlx::prelude::FromRow;
 use utoipa::{IntoParams, ToSchema};
 use uuid::Uuid;
 use validator::{Validate, ValidationError};
@@ -311,7 +312,34 @@ pub struct NewItemDto {
     pub bio: String,
 }
 
-#[derive(Serialize, ToSchema)]
+#[derive(Serialize, Deserialize, sqlx::Type, ToSchema, PartialEq, Eq)]
+#[serde(untagged, rename_all = "snake_case")]
+#[sqlx(type_name = "amount_tp", rename_all = "snake_case")]
+pub enum AmountType {
+    None,
+    Few,
+    Mid,
+    Many,
+    G,
+    Ml,
+    Pcs,
+}
+
+impl AmountType {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            AmountType::None => "none",
+            AmountType::Few => "few",
+            AmountType::Mid => "mid",
+            AmountType::Many => "many",
+            AmountType::G => "g",
+            AmountType::Ml => "ml",
+            AmountType::Pcs => "pcs",
+        }
+    }
+}
+
+#[derive(Serialize, ToSchema, FromRow)]
 pub struct ItemDto {
     pub id: Uuid,
     pub storage_id: Uuid,
@@ -320,7 +348,7 @@ pub struct ItemDto {
     pub bio: String,
 
     pub amount: i64,
-    pub amount_type: String,
+    pub amount_type: AmountType,
 
     pub review_interval: Option<i64>,
     pub needed_review: bool,
@@ -334,12 +362,16 @@ pub struct ItemDto {
 
 #[derive(Deserialize, Validate, ToSchema)] // TODO validate
 pub struct ReviewDto {
+    #[validate(range(min = 0))]
     pub amount: i64,
-    pub amount_type: String,
+
+    pub amount_type: AmountType,
+
     pub expired_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Deserialize, ToSchema)]
+#[serde(untagged, rename_all = "snake_case")]
 pub enum ItemFindFilter {
     All,
     NoneOnly,
@@ -357,8 +389,42 @@ pub struct ItemFindPagination {
     pub limit: i64,
 }
 
+impl ItemFindPagination {
+    pub fn filter(&self, mut val: Vec<ItemDto>) -> Vec<ItemDto> {
+        use crate::domain::search::*;
+
+        match self.filter {
+            ItemFindFilter::All => {}
+
+            ItemFindFilter::NoneOnly => val.retain(|x| x.amount_type == AmountType::None),
+
+            ItemFindFilter::NotNoneOnly => val.retain(|x| x.amount_type != AmountType::None),
+
+            ItemFindFilter::ReviewOnly => val.retain(|x| x.needed_review),
+
+            ItemFindFilter::ExpiredOnly => {
+                let now = Utc::now();
+                val.retain(|x| {
+                    if let Some(exp) = x.expired_at {
+                        exp <= now
+                    } else {
+                        false
+                    }
+                })
+            }
+        }
+
+        self.search.sort_array(&mut val);
+        if val.len() > self.limit as usize {
+            val.truncate(self.limit as usize);
+        }
+
+        val
+    }
+}
+
 impl crate::domain::search::SearchTrigramItem for ItemDto {
-    fn gen_trigram(&self, res: &mut crate::domain::search::Grams) {
-        self.display_name.gen_trigram(res);
+    fn gen_ngram(&self, res: &mut crate::domain::search::Ngrams) {
+        self.display_name.gen_ngram(res);
     }
 }

@@ -1,13 +1,32 @@
 use std::collections::HashSet;
 
-pub type Gram = [u8; 3];
-pub type Grams = HashSet<Gram>;
+pub const NGRAM_SIZE: usize = 3;
+
+pub type Ngram = [u8; NGRAM_SIZE];
+pub type Ngrams = HashSet<Ngram>;
 
 pub trait SearchTrigramItem: Sized {
-    fn gen_trigram(&self, res: &mut Grams);
+    fn gen_ngram(&self, res: &mut Ngrams);
+
+    fn sort_array<Other>(&self, arr: &mut [Other])
+    where
+        Other: SearchTrigramItem,
+    {
+        let mut base = Ngrams::new();
+        let mut other = Ngrams::new();
+        self.gen_ngram(&mut base);
+
+        arr.sort_by_cached_key(|x| {
+            other.clear();
+            x.gen_ngram(&mut other);
+            cmp_trigram(&base, &other)
+        });
+
+        arr.reverse();
+    }
 }
 
-pub fn cmp_trigram(a: &Grams, b: &Grams) -> usize {
+fn cmp_trigram(a: &Ngrams, b: &Ngrams) -> usize {
     let all = a.len() + b.len();
     if all == 0 {
         return 0;
@@ -17,51 +36,41 @@ pub fn cmp_trigram(a: &Grams, b: &Grams) -> usize {
     ok * (usize::MAX / all)
 }
 
-pub fn sort_array<A, B>(a: &A, arr: &mut [B])
-where
-    A: SearchTrigramItem,
-    B: SearchTrigramItem + Sized,
-{
-    let mut base = Grams::new();
-    let mut val = Grams::new();
-    a.gen_trigram(&mut base);
-    arr.sort_by_cached_key(|x| {
-        val.clear();
-        x.gen_trigram(&mut val);
-        cmp_trigram(&base, &val)
-    });
-    arr.reverse();
-}
-
-impl<'a> SearchTrigramItem for &'a str {
-    fn gen_trigram(&self, res: &mut Grams) {
-        let bytes = self.as_bytes();
-
-        if bytes.is_empty() {
+impl<'a> SearchTrigramItem for &'a [u8] {
+    fn gen_ngram(&self, res: &mut Ngrams) {
+        if self.is_empty() {
             return;
         }
 
-        if bytes.len() == 1 {
-            res.insert([0, bytes[0], 0]);
-        } else {
-            // >= 2
-            res.insert([0, 0, bytes[0]]); // 0 0 x
-            res.insert([0, bytes[0], bytes[1]]); // 0 x x
-
-            let end = bytes.len();
-            res.insert([bytes[end - 1], 0, 0]); // x 0 0
-            res.insert([bytes[end - 2], bytes[end - 1], 0]); // x x 0
-
-            // x x x
-            for i in 0..bytes.len() - 2 {
-                res.insert([bytes[i], bytes[i + 1], bytes[i + 2]]);
+        let next = |x: &mut Ngram| {
+            for i in 1..x.len() {
+                x[i - 1] = x[i];
             }
+        };
+
+        let mut sub = [0u8; NGRAM_SIZE];
+
+        for t in self.iter() {
+            next(&mut sub);
+            sub[NGRAM_SIZE - 1] = *t;
+            res.insert(sub.clone());
+        }
+
+        for _ in 0..NGRAM_SIZE {
+            next(&mut sub);
+            res.insert(sub.clone());
         }
     }
 }
 
+impl<'a> SearchTrigramItem for &'a str {
+    fn gen_ngram(&self, res: &mut Ngrams) {
+        self.as_bytes().gen_ngram(res);
+    }
+}
+
 impl SearchTrigramItem for String {
-    fn gen_trigram(&self, res: &mut Grams) {
-        (&self[..]).gen_trigram(res);
+    fn gen_ngram(&self, res: &mut Ngrams) {
+        self.as_bytes().gen_ngram(res);
     }
 }

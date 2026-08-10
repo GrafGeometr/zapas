@@ -9,7 +9,6 @@ use axum::{
     middleware::{self},
     routing::{get, post},
 };
-use chrono::Utc;
 use uuid::Uuid;
 use validator::Validate;
 
@@ -263,10 +262,9 @@ pub async fn all_items(
     Path(storage_id): Path<Uuid>,
     Query(pag): Query<ItemFindPagination>,
 ) -> Result<Json<Vec<ItemDto>>, AppErr> {
-    use crate::domain::search::*;
     pag.validate()?;
 
-    let mut res = sqlx::query_as!(
+    let res = sqlx::query_as!(
         ItemDto,
         r#"
         select
@@ -275,7 +273,7 @@ pub async fn all_items(
             display_name,
             bio,
             amount,
-            amount_type,
+            amount_type as "amount_type: AmountType",
             review_interval,
             needed_review,
             last_review_at,
@@ -290,45 +288,7 @@ pub async fn all_items(
     .fetch_all(&app.pool)
     .await
     .app_log()?;
-
-    match pag.filter {
-        ItemFindFilter::All => {}
-
-        ItemFindFilter::NoneOnly => {
-            res = res
-                .into_iter()
-                .filter(|x| x.amount_type == "none")
-                .collect();
-        }
-
-        ItemFindFilter::NotNoneOnly => {
-            res = res
-                .into_iter()
-                .filter(|x| x.amount_type != "none")
-                .collect();
-        }
-
-        ItemFindFilter::ReviewOnly => res = res.into_iter().filter(|x| x.needed_review).collect(),
-
-        ItemFindFilter::ExpiredOnly => {
-            let now = Utc::now();
-            res = res
-                .into_iter()
-                .filter(|x| {
-                    if let Some(exp) = x.expired_at {
-                        now >= exp
-                    } else {
-                        false
-                    }
-                })
-                .collect();
-        }
-    }
-
-    sort_array(&pag.search, &mut res);
-    if res.len() > pag.limit as usize {
-        res.truncate(pag.limit as usize);
-    }
+    let res = pag.filter(res);
 
     Ok(Json(res))
 }

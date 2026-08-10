@@ -27,6 +27,7 @@ pub fn make_app(app: App) -> Router {
         .route("/invite/{token}", post(invite))
         .route("/{room_id}/new_storage", post(make_storage))
         .route("/{room_id}/storages", get(all_storages))
+        .route("/{room_id}/items", get(all_items))
         .layer(middleware::from_fn_with_state(app.clone(), auth_middleware))
         .with_state(app)
 }
@@ -467,4 +468,55 @@ pub async fn all_storages(
     .app_log()?;
 
     Ok(Json(res.into_iter().map(|x| x.into()).collect()))
+}
+
+#[utoipa::path(get,
+    path = "/api/v1/room/{room_id}/items",
+    tag = "items",
+    params(
+        ItemFindPagination
+    ),
+    responses(
+        (status = 200, body = [ItemDto], description = "List of items in room"),
+        (status = 401, body = AppErrJson, description = "Unathorized. Check prolongation"),
+        (status = 404, body = AppErrJson, description = "Storage not found or user is not a member"),
+        (status = 500, body = AppErrJson, description = "Internal server error")
+    ))]
+pub async fn all_items(
+    State(app): State<App>,
+    Extension(user_id): Extension<Uuid>,
+    Path(room_id): Path<Uuid>,
+    Query(pag): Query<ItemFindPagination>,
+) -> Result<Json<Vec<ItemDto>>, AppErr> {
+    pag.validate()?;
+
+    let res = sqlx::query_as!(
+        ItemDto,
+        r#"
+        select
+            i.id,
+            i.storage_id,
+            i.display_name,
+            i.bio,
+            i.amount,
+            i.amount_type as "amount_type: AmountType",
+            i.review_interval,
+            i.needed_review,
+            i.last_review_at,
+            i.expired_notify,
+            i.expired_at,
+            i.created_at
+        from items as i
+        join storages as s on s.id = i.storage_id
+        where s.room_id = $2 and check_member_exists($1, $2)
+        "#,
+        user_id,
+        room_id
+    )
+    .fetch_all(&app.pool)
+    .await
+    .app_log()?;
+    let res = pag.filter(res);
+
+    Ok(Json(res))
 }

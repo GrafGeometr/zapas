@@ -14,6 +14,8 @@ use uuid::Uuid;
 use validator::Validate;
 
 pub fn make_app(app: App) -> Router {
+    tokio::spawn(crate::repo::item_timer::item_review_timer(app.clone()));
+
     Router::new()
         .route("/{item_id}", get(get_profile))
         .route("/{item_id}/profile", post(upd_profile))
@@ -48,7 +50,7 @@ pub async fn get_profile(
             display_name,
             bio,
             amount,
-            amount_type,
+            amount_type as "amount_type: AmountType",
             review_interval,
             needed_review,
             last_review_at,
@@ -98,7 +100,7 @@ pub async fn upd_profile(
             display_name,
             bio,
             amount,
-            amount_type,
+            amount_type as "amount_type: AmountType",
             review_interval,
             needed_review,
             last_review_at,
@@ -148,7 +150,7 @@ pub async fn set_timing(
             display_name,
             bio,
             amount,
-            amount_type,
+            amount_type as "amount_type: AmountType",
             review_interval,
             needed_review,
             last_review_at,
@@ -193,7 +195,7 @@ pub async fn need_review(
             display_name,
             bio,
             amount,
-            amount_type,
+            amount_type as "amount_type: AmountType",
             review_interval,
             needed_review,
             last_review_at,
@@ -228,8 +230,7 @@ pub async fn review(
 ) -> Result<Json<ItemDto>, AppErr> {
     review.validate()?;
 
-    let res = sqlx::query_as!(
-        ItemDto,
+    let res = sqlx::query_as::<_, ItemDto>(
         r#"
         update items as i set
             amount = $3,
@@ -244,20 +245,20 @@ pub async fn review(
             display_name,
             bio,
             amount,
-            amount_type,
+            amount_type as "amount_type: AmountType",
             review_interval,
             needed_review,
             last_review_at,
             expired_notify,
             expired_at,
             created_at"#,
-        user_id,
-        item_id,
-        review.amount,
-        review.amount_type,
-        review.expired_at,
-        Utc::now()
     )
+    .bind(user_id)
+    .bind(item_id)
+    .bind(review.amount)
+    .bind(review.amount_type)
+    .bind(review.expired_at)
+    .bind(Utc::now())
     .fetch_optional(&app.pool)
     .await
     .app_log()?
