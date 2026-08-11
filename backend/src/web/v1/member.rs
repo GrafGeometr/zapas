@@ -22,6 +22,7 @@ pub fn make_app(app: App) -> Router {
         .route("/{member_id}/default_portions", get(get_def_portions))
         .route("/{member_id}/default_portions", post(set_def_portions))
         .route("/{member_id}/portion", post(set_portion))
+        .route("/{member_id}/portions", get(portion_calendar))
         .layer(middleware::from_fn_with_state(app.clone(), auth_middleware))
         .with_state(app)
 }
@@ -261,13 +262,18 @@ pub async fn set_portion(
 ) -> Result<(), AppErr> {
     port.validate()?;
 
-    // TODO for roomates?
     sqlx::query!(
         r#"
         insert into portions (member_id, portion_date, cnt)
         select m.id, $3, $4
         from members as m
-        where m.user_id = $1 and m.id = $2
+        where
+            m.id = $2 and
+            exists (
+                select 1
+                from members as v
+                where v.user_id = $1 and v.room_id = m.room_id
+            )
         on conflict (member_id, portion_date)
         do update set
             cnt = excluded.cnt
@@ -285,6 +291,16 @@ pub async fn set_portion(
     Ok(())
 }
 
+#[utoipa::path(get,
+    path = "/api/v1/member/{member_id}/portions",
+    tag = "portions",
+    request_body = TwoDate,
+    responses(
+        (status = 200, body = [PortionDateDto], description = "..."),
+        (status = 401, body = AppErrJson, description = "Unathorized. Check prolongation"),
+        (status = 404, body = AppErrJson, description = "Member not found or you are not in the same room"),
+        (status = 500, body = AppErrJson, description = "Internal server error")
+    ))]
 pub async fn portion_calendar(
     State(app): State<App>,
     Extension(user_id): Extension<Uuid>,
@@ -293,7 +309,6 @@ pub async fn portion_calendar(
 ) -> Result<Json<Vec<PortionDateDto>>, AppErr> {
     seq.validate()?;
 
-    // TODO for roomates
     let res = sqlx::query_as!(
         PortionDateDto,
         r#"
@@ -307,7 +322,10 @@ pub async fn portion_calendar(
             p.portion_date <= $4::date and
             exists (
                 select 1 from members as m
-                where m.user_id = $1 and m.room_id = $2
+                where m.id = $2 and exists (
+                    select 1 from members as v
+                    where v.user_id = $1 and v.room_id = m.room_id
+                )
         )"#,
         user_id,
         member_id,

@@ -39,6 +39,7 @@ use utoipa_scalar::{Scalar, Servable};
         crate::web::v1::member::get_def_portions,
         crate::web::v1::member::set_def_portions,
         crate::web::v1::member::set_portion,
+        crate::web::v1::member::portion_calendar,
         crate::web::v1::storage::storage_profile,
         crate::web::v1::storage::upd_profile,
         crate::web::v1::storage::set_storage_timing,
