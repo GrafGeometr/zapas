@@ -51,6 +51,7 @@ pub fn make_app(app: App) -> Router {
         .merge(with_auth)
         .with_state(app)
 }
+
 #[utoipa::path(post,
     path = "/api/v1/user/register",
     tag = "auth",

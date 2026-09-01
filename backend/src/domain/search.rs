@@ -1,9 +1,7 @@
-use std::collections::HashSet;
-
 pub const NGRAM_SIZE: usize = 3;
 
 pub type Ngram = [u8; NGRAM_SIZE];
-pub type Ngrams = HashSet<Ngram>;
+pub type Ngrams = Vec<Ngram>;
 
 pub trait SearchTrigramItem: Sized {
     fn gen_ngram(&self, res: &mut Ngrams);
@@ -32,7 +30,21 @@ fn cmp_trigram(a: &Ngrams, b: &Ngrams) -> usize {
         return 0;
     }
 
-    let ok = a.intersection(b).count();
+    let mut j = 0;
+    let mut ok = 0;
+    for i in 0..a.len() {
+        while j < b.len() && b[j] < a[i] {
+            j += 1;
+        }
+        if j >= b.len() {
+            break;
+        }
+
+        if a[i] == b[j] {
+            ok += 1;
+        }
+    }
+
     ok * (usize::MAX / all)
 }
 
@@ -53,13 +65,16 @@ impl<'a> SearchTrigramItem for &'a [u8] {
         for t in self.iter() {
             next(&mut sub);
             sub[NGRAM_SIZE - 1] = *t;
-            res.insert(sub.clone());
+            res.push(sub.clone());
         }
 
         for _ in 0..NGRAM_SIZE {
             next(&mut sub);
-            res.insert(sub.clone());
+            res.push(sub.clone());
         }
+
+        res.sort();
+        res.dedup();
     }
 }
 
