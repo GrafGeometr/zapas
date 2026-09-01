@@ -6,6 +6,7 @@ pub mod middleware;
 pub mod ping;
 pub mod room;
 pub mod storage;
+pub mod transaction;
 pub mod user;
 
 use crate::app::App;
@@ -26,6 +27,7 @@ pub fn make_app(app: App) -> Router {
     let member = Router::new().nest("/member", member::make_app(app.clone()));
     let storage = Router::new().nest("/storage", storage::make_app(app.clone()));
     let item = Router::new().nest("/item", item::make_app(app.clone()));
+    let transaction = Router::new().nest("/transaction", transaction::make_app(app.clone()));
     let room = Router::new().nest("/room", room::make_app(app));
 
     Router::new().nest(
@@ -34,6 +36,7 @@ pub fn make_app(app: App) -> Router {
             .merge(room)
             .merge(member)
             .merge(storage)
-            .merge(item),
+            .merge(item)
+            .merge(transaction),
     )
 }

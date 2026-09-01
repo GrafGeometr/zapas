@@ -28,6 +28,9 @@ pub fn make_app(app: App) -> Router {
         .route("/{room_id}/new_storage", post(make_storage))
         .route("/{room_id}/storages", get(all_storages))
         .route("/{room_id}/items", get(all_items))
+        .route("/{room_id}/new_transaction", post(new_transaction))
+        .route("/{room_id}/new_credit", post(new_credit))
+        .route("/{room_id}/transactions", get(all_transactions))
         .layer(middleware::from_fn_with_state(app.clone(), auth_middleware))
         .with_state(app)
 }
@@ -517,6 +520,155 @@ pub async fn all_items(
     .await
     .app_log()?;
     let res = pag.filter(res);
+
+    Ok(Json(res))
+}
+
+#[utoipa::path(post,
+    path = "/api/v1/room/{room_id}/new_transaction",
+    tag = "transactions",
+    request_body = MakeTransactionDto,
+    responses(
+        (status = 200, body = UuidDto, description = "Successfully make new transaction"),
+        (status = 401, body = AppErrJson, description = "Unathorized. Check prolongation"),
+        (status = 500, body = AppErrJson, description = "Internal server error")
+    ))]
+pub async fn new_transaction(
+    State(app): State<App>,
+    Extension(user_id): Extension<Uuid>,
+    Path(room_id): Path<Uuid>,
+    Json(tr): Json<MakeTransactionDto>,
+) -> Result<Json<UuidDto>, AppErr> {
+    tr.validate()?;
+
+    let id = Uuid::now_v7();
+    sqlx::query!(
+        r#"
+        insert into transactions
+        (
+            id,
+            from_member_id,
+            to_member_id,
+            money,
+            bio
+        )
+        select $6, m.id, $3, $4, $5
+        from members as m
+        where
+            m.user_id = $1 and
+            m.room_id = $2 and
+            exists (
+                select 1 from members as f
+                where f.id = $3 and f.room_id = $2
+            )
+        returning id"#,
+        user_id,
+        room_id,
+        tr.member_to,
+        tr.money,
+        tr.bio,
+        id
+    )
+    .fetch_optional(&app.pool)
+    .await
+    .app_log()?
+    .ok_or(AppErr::NotFound)?;
+
+    Ok(Json(UuidDto { id }))
+}
+
+#[utoipa::path(post,
+    path = "/api/v1/room/{room_id}/new_credit",
+    tag = "transactions",
+    request_body = MakeTransactionDto,
+    responses(
+        (status = 200, body = UuidDto, description = "Successfully make new credit"),
+        (status = 401, body = AppErrJson, description = "Unathorized. Check prolongation"),
+        (status = 500, body = AppErrJson, description = "Internal server error")
+    ))]
+pub async fn new_credit(
+    State(app): State<App>,
+    Extension(user_id): Extension<Uuid>,
+    Path(room_id): Path<Uuid>,
+    Json(tr): Json<MakeTransactionDto>,
+) -> Result<Json<UuidDto>, AppErr> {
+    tr.validate()?;
+
+    let id = Uuid::now_v7();
+    sqlx::query!(
+        r#"
+        insert into transactions
+        (
+            id,
+            from_member_id,
+            to_member_id,
+            money,
+            bio
+        )
+        select $6, m.id, $3, $4, $5
+        from members as m
+        where
+            m.user_id = $1 and
+            m.room_id = $2 and
+            exists (
+                select 1 from members as f
+                where f.id = $3 and f.room_id = $2
+            )
+        returning id"#,
+        user_id,
+        room_id,
+        tr.member_to,
+        tr.money,
+        tr.bio,
+        id
+    )
+    .fetch_optional(&app.pool)
+    .await
+    .app_log()?
+    .ok_or(AppErr::NotFound)?;
+
+    Ok(Json(UuidDto { id }))
+}
+
+#[utoipa::path(get,
+    path = "/api/v1/room/{room_id}/transactions",
+    tag = "transactions",
+    responses(
+        (status = 200, body = [TransactionDto], description = "..."),
+        (status = 401, body = AppErrJson, description = "Unathorized. Check prolongation"),
+        (status = 500, body = AppErrJson, description = "Internal server error")
+    ))]
+pub async fn all_transactions(
+    State(app): State<App>,
+    Extension(user_id): Extension<Uuid>,
+    Path(room_id): Path<Uuid>,
+    Query(pag): Query<Pagination>,
+) -> Result<Json<Vec<TransactionDto>>, AppErr> {
+    pag.validate()?;
+
+    let res = sqlx::query_as!(
+        TransactionDto,
+        r#"
+        select
+            t.id,
+            t.from_member_id as member_from,
+            t.to_member_id as member_to,
+            t.money,
+            t.bio,
+            t.created_at
+        from transactions as t
+        join members as m on m.id = t.from_member_id
+        where m.room_id = $2 and check_member_exists($1, $2)
+        order by t.created_at
+        offset $3 limit $4"#,
+        user_id,
+        room_id,
+        pag.offset(),
+        pag.limit()
+    )
+    .fetch_all(&app.pool)
+    .await
+    .app_log()?;
 
     Ok(Json(res))
 }

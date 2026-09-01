@@ -32,6 +32,9 @@ use utoipa_scalar::{Scalar, Servable};
         crate::web::v1::room::make_storage,
         crate::web::v1::room::all_storages,
         crate::web::v1::room::all_items,
+        crate::web::v1::room::new_transaction,
+        crate::web::v1::room::new_credit,
+        crate::web::v1::room::all_transactions,
         crate::web::v1::member::get_profile,
         crate::web::v1::member::get_origin_profile,
         crate::web::v1::member::delete,
@@ -40,6 +43,7 @@ use utoipa_scalar::{Scalar, Servable};
         crate::web::v1::member::set_def_portions,
         crate::web::v1::member::set_portion,
         crate::web::v1::member::portion_calendar,
+        crate::web::v1::member::all_transactions_for_member,
         crate::web::v1::storage::storage_profile,
         crate::web::v1::storage::upd_profile,
         crate::web::v1::storage::set_storage_timing,
@@ -52,6 +56,8 @@ use utoipa_scalar::{Scalar, Servable};
         crate::web::v1::item::need_review,
         crate::web::v1::item::review,
         crate::web::v1::item::delete_item,
+        crate::web::v1::transaction::get_transaction,
+        crate::web::v1::transaction::delete_transaction,
     ),
     info(title = "Zapas API")
 )]

@@ -469,3 +469,28 @@ fn check_two_date(x: &TwoDate) -> Result<(), validator::ValidationError> {
         Ok(())
     }
 }
+
+#[derive(Deserialize, ToSchema, Validate)]
+pub struct MakeTransactionDto {
+    pub member_to: Uuid,
+
+    #[validate(range(min = 1))]
+    pub money: i64,
+
+    #[validate(length(max = 1023))]
+    pub bio: String,
+}
+
+#[derive(Serialize, ToSchema)]
+pub struct TransactionDto {
+    pub id: Uuid,
+
+    pub member_from: Uuid,
+    pub member_to: Uuid,
+
+    pub money: i64,
+
+    pub bio: String,
+
+    pub created_at: DateTime<Utc>,
+}

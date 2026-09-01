@@ -6,7 +6,7 @@ use crate::{
 };
 use axum::{
     Extension, Json, Router,
-    extract::{Path, State},
+    extract::{Path, Query, State},
     middleware,
     routing::{get, post},
 };
@@ -23,6 +23,10 @@ pub fn make_app(app: App) -> Router {
         .route("/{member_id}/default_portions", post(set_def_portions))
         .route("/{member_id}/portion", post(set_portion))
         .route("/{member_id}/portions", get(portion_calendar))
+        .route(
+            "/{member_id}/transactions",
+            get(all_transactions_for_member),
+        )
         .layer(middleware::from_fn_with_state(app.clone(), auth_middleware))
         .with_state(app)
 }
@@ -331,6 +335,50 @@ pub async fn portion_calendar(
         member_id,
         seq.begin,
         seq.end
+    )
+    .fetch_all(&app.pool)
+    .await
+    .app_log()?;
+
+    Ok(Json(res))
+}
+
+#[utoipa::path(get,
+    path = "/api/v1/member/{member_id}/transactions",
+    tag = "transactions",
+    responses(
+        (status = 200, body = [TransactionDto], description = "..."),
+        (status = 401, body = AppErrJson, description = "Unathorized. Check prolongation"),
+        (status = 500, body = AppErrJson, description = "Internal server error")
+    ))]
+pub async fn all_transactions_for_member(
+    State(app): State<App>,
+    Extension(user_id): Extension<Uuid>,
+    Path(member_id): Path<Uuid>,
+    Query(pag): Query<Pagination>,
+) -> Result<Json<Vec<TransactionDto>>, AppErr> {
+    pag.validate()?;
+
+    let res = sqlx::query_as!(
+        TransactionDto,
+        r#"
+        select
+            t.id,
+            t.from_member_id as member_from,
+            t.to_member_id as member_to,
+            t.money,
+            t.bio,
+            t.created_at
+        from transactions as t
+        where
+            (t.from_member_id = $2 or t.to_member_id = $2) and
+            check_member_exists($1, $2)
+        order by t.created_at
+        offset $3 limit $4"#,
+        user_id,
+        member_id,
+        pag.offset(),
+        pag.limit()
     )
     .fetch_all(&app.pool)
     .await
