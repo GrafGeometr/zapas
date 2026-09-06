@@ -5,25 +5,6 @@ use utoipa::{IntoParams, ToSchema};
 use uuid::Uuid;
 use validator::{Validate, ValidationError};
 
-#[derive(Serialize, Validate, Deserialize, IntoParams)]
-pub struct Pagination {
-    #[validate(range(min = 0))]
-    pub num: i64,
-
-    #[validate(range(min = 1, max = 10_000))]
-    pub size: i64,
-}
-
-impl Pagination {
-    pub fn limit(&self) -> i64 {
-        self.size
-    }
-
-    pub fn offset(&self) -> i64 {
-        self.num * self.size
-    }
-}
-
 #[derive(Deserialize, Validate, ToSchema)]
 pub struct RegisterDto {
     #[validate(length(min = 4, max = 63), custom(function = "validate_username"))]
@@ -139,7 +120,7 @@ pub struct MakeRoomDto {
     pub bio: String,
 }
 
-#[derive(Serialize, ToSchema)]
+#[derive(Clone, Serialize, ToSchema)]
 pub struct RoomProfileDto {
     pub id: Uuid,
 

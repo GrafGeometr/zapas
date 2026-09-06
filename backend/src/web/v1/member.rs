@@ -2,7 +2,7 @@ use super::dto::*;
 use crate::{
     app::App,
     err::{AppErr, AppErrJson, ToAppErr},
-    web::v1::middleware::auth_middleware,
+    web::v1::{middleware::auth_middleware, pag::Pag},
 };
 use axum::{
     Extension, Json, Router,
@@ -355,7 +355,7 @@ pub async fn all_transactions_for_member(
     State(app): State<App>,
     Extension(user_id): Extension<Uuid>,
     Path(member_id): Path<Uuid>,
-    Query(pag): Query<Pagination>,
+    Query(pag): Query<Pag>,
 ) -> Result<Json<Vec<TransactionDto>>, AppErr> {
     pag.validate()?;
 

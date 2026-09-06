@@ -2,7 +2,10 @@ use super::dto::*;
 use crate::{
     app::App,
     err::{AppErr, AppErrJson, ToAppErr},
-    web::v1::middleware::auth_middleware,
+    web::v1::{
+        middleware::auth_middleware,
+        pag::{Pag, PagRes},
+    },
 };
 use axum::{
     Extension, Json, Router,
@@ -121,21 +124,25 @@ pub async fn room_profile(
     path = "/api/v1/room/all",
     tag = "rooms",
     params(
-        Pagination
+        Pag
     ),
     responses(
-        (status = 200, body = [UuidDto], description = "List of rooms"),
+        (status = 200, body = PagRes<RoomProfileDto>, description = "List of rooms"),
         (status = 401, body = AppErrJson, description = "Unathorized. Check prolongation"),
         (status = 500, body = AppErrJson, description = "Internal server error")
     ))]
 pub async fn rooms(
     State(app): State<App>,
     Extension(user_id): Extension<Uuid>,
-    Query(pag): Query<Pagination>,
-) -> Result<Json<Vec<RoomProfileDto>>, AppErr> {
+    Query(pag): Query<Pag>,
+) -> Result<Json<PagRes<RoomProfileDto>>, AppErr> {
     pag.validate()?;
 
-    let res = sqlx::query_as!(
+    let mut res = PagRes::new(pag);
+
+    let offset = (pag.offset() - pag.limit()).max(0);
+    let limit = pag.limit() * 2 + 1;
+    res.data = sqlx::query_as!(
         RoomProfileDb,
         r#"
         select
@@ -151,14 +158,45 @@ pub async fn rooms(
         order by m.created_at
         offset $2 limit $3"#,
         user_id,
-        pag.offset(),
-        pag.limit()
+        offset,
+        limit
     )
     .fetch_all(&app.pool)
     .await
-    .app_log()?;
+    .app_log()?
+    .into_iter()
+    .map(|x| x.into())
+    .collect();
 
-    Ok(Json(res.into_iter().map(|x| x.into()).collect()))
+    let len = res.data.len() as i64;
+    if pag.page == 0 {
+        res.prev_page = None;
+        res.next_page = if len > pag.limit() {
+            Some(pag.page + 1)
+        } else {
+            None
+        };
+        res.data.truncate(pag.limit() as usize);
+    } else {
+        if len == 0 {
+            res.prev_page = None;
+            res.next_page = None;
+            res.data.clear();
+        } else if len <= pag.limit() {
+            res.prev_page = Some(pag.page - 1);
+            res.next_page = None;
+            res.data.clear();
+        } else if len <= pag.limit() * 2 {
+            res.prev_page = Some(pag.page - 1);
+            res.next_page = None;
+            res.data.drain(0..pag.limit() as usize);
+        } else {
+            res.prev_page = Some(pag.page - 1);
+            res.next_page = Some(pag.page + 1);
+            res.data.drain(0..pag.limit() as usize);
+        }
+    }
+    Ok(Json(res))
 }
 
 #[utoipa::path(post,
@@ -273,7 +311,7 @@ pub async fn delete_room(
     path = "/api/v1/room/{room_id}/members",
     tag = "rooms",
     params(
-        Pagination
+        Pag
     ),
     responses(
         (status = 200, body = [MemberDto], description = "List of room memberships"),
@@ -285,7 +323,7 @@ pub async fn all_members(
     State(app): State<App>,
     Extension(user_id): Extension<Uuid>,
     Path(room_id): Path<Uuid>,
-    Query(pag): Query<Pagination>,
+    Query(pag): Query<Pag>,
 ) -> Result<Json<Vec<MemberDto>>, AppErr> {
     pag.validate()?;
 
@@ -426,7 +464,7 @@ pub async fn make_storage(
     path = "/api/v1/room/{room_id}/storages",
     tag = "storages",
     params(
-        Pagination
+        Pag
     ),
     responses(
         (status = 200, body = [StorageDto], description = "List of room's storages"),
@@ -438,7 +476,7 @@ pub async fn all_storages(
     State(app): State<App>,
     Extension(user_id): Extension<Uuid>,
     Path(room_id): Path<Uuid>,
-    Query(pag): Query<Pagination>,
+    Query(pag): Query<Pag>,
 ) -> Result<Json<Vec<StorageDto>>, AppErr> {
     pag.validate()?;
 
@@ -642,7 +680,7 @@ pub async fn all_transactions(
     State(app): State<App>,
     Extension(user_id): Extension<Uuid>,
     Path(room_id): Path<Uuid>,
-    Query(pag): Query<Pagination>,
+    Query(pag): Query<Pag>,
 ) -> Result<Json<Vec<TransactionDto>>, AppErr> {
     pag.validate()?;
 

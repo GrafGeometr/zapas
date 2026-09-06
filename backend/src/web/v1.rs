@@ -3,6 +3,7 @@ pub mod dto;
 pub mod item;
 pub mod member;
 pub mod middleware;
+pub mod pag;
 pub mod ping;
 pub mod room;
 pub mod storage;
