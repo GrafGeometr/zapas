@@ -1,4 +1,4 @@
-package com.example.zapas.ui.presentation.screens.auth
+package com.example.zapas.ui.presentation.screens.auth.login
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -15,8 +15,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -25,32 +23,24 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
-import com.example.zapas.ui.presentation.viewmodels.auth.AuthViewModel
 import com.example.zapas.ui.presentation.viewmodels.auth.LoginState
+import com.example.zapas.ui.theme.ZapasTheme
 
 
 @Composable
-fun LoginScreen(
-    onLoginSuccess: () -> Unit,
+fun LoginScreenContent(
+    loginState: LoginState,
+    onLogin: (String, String) -> Unit,
     onNavigateToRegister: () -> Unit,
-    viewModel: AuthViewModel = hiltViewModel()
+    modifier: Modifier = Modifier
 ) {
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
 
-    val loginState by viewModel.loginState.collectAsState()
-
-
-    LaunchedEffect(loginState) {
-        if (loginState is LoginState.Success) {
-            onLoginSuccess()
-        }
-    }
-
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxSize()
             .padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -80,7 +70,7 @@ fun LoginScreen(
         Spacer(modifier = Modifier.height(24.dp))
 
         Button(
-            onClick = { viewModel.login(username, password) },
+            onClick = { onLogin(username, password) },
             modifier = Modifier.fillMaxWidth(),
             enabled = loginState !is LoginState.Loading
         ) {
@@ -95,7 +85,7 @@ fun LoginScreen(
 
         if (loginState is LoginState.Error) {
             Text(
-                text = (loginState as LoginState.Error).message,
+                text = loginState.message,
                 color = MaterialTheme.colorScheme.error
             )
         }
@@ -105,5 +95,38 @@ fun LoginScreen(
         TextButton(onClick = onNavigateToRegister) {
             Text("Нет аккаунта? Зарегистрироваться")
         }
+    }
+}
+
+@Preview(showBackground = true, name = "Idle")
+@Composable
+fun LoginScreenIdlePreview() {
+    ZapasTheme {
+        LoginScreenContent(
+            loginState = LoginState.Idle,
+            onLogin = { _, _ -> },
+            onNavigateToRegister = {})
+    }
+}
+
+@Preview(showBackground = true, name = "Loading")
+@Composable
+fun LoginScreenLoadingPreview() {
+    ZapasTheme {
+        LoginScreenContent(
+            loginState = LoginState.Loading,
+            onLogin = { _, _ -> },
+            onNavigateToRegister = {})
+    }
+}
+
+@Preview(showBackground = true, name = "Error")
+@Composable
+fun LoginScreenErrorPreview() {
+    ZapasTheme {
+        LoginScreenContent(
+            loginState = LoginState.Error("Неверный логин или пароль"),
+            onLogin = { _, _ -> },
+            onNavigateToRegister = {})
     }
 }

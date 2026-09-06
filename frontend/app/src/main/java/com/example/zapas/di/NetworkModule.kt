@@ -1,9 +1,10 @@
 package com.example.zapas.di
 
 import com.example.zapas.BuildConfig
-import com.example.zapas.data.api.AuthApiService
+import com.example.zapas.data.api.services.AuthApiService
 import com.example.zapas.data.api.AuthInterceptor
-import com.example.zapas.data.api.UserApiService
+import com.example.zapas.data.api.services.RoomsApiService
+import com.example.zapas.data.api.services.UserApiService
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -63,5 +64,11 @@ object NetworkModule {
     @Singleton
     fun provideUserApiService(retrofit: Retrofit): UserApiService {
         return retrofit.create(UserApiService::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun providesRoomsApiService(retrofit: Retrofit): RoomsApiService {
+        return retrofit.create(RoomsApiService::class.java)
     }
 }

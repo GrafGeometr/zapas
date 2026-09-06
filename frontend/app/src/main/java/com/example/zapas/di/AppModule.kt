@@ -1,9 +1,9 @@
 package com.example.zapas.di
 
 import android.content.Context
-import com.example.zapas.data.api.AuthApiService
+import com.example.zapas.data.api.services.AuthApiService
 import com.example.zapas.data.api.AuthInterceptor
-import com.example.zapas.data.api.UserApiService
+import com.example.zapas.data.api.services.UserApiService
 import com.example.zapas.data.local.TokenManager
 import com.example.zapas.data.local.storage.KeyValueStorage
 import com.example.zapas.data.local.storage.SharedPreferencesStorage

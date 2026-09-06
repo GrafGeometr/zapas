@@ -21,6 +21,8 @@ data class ProfileState(
     val isLoading: Boolean = false,
     val error: String? = null,
     val isEditing: Boolean = false,
+    val showPasswordDialog: Boolean = false,
+    val showDeleteDialog: Boolean = false,
     val updateSuccess: Boolean = false,
     val passwordChangeSuccess: Boolean = false,
     val deleteSuccess: Boolean = false
@@ -58,6 +60,14 @@ class ProfileViewModel @Inject constructor(
 
     fun toggleEdit() {
         _state.update { it.copy(isEditing = !it.isEditing, updateSuccess = false) }
+    }
+
+    fun setShowPasswordDialog(show: Boolean) {
+        _state.update { it.copy(showPasswordDialog = show) }
+    }
+
+    fun setShowDeleteDialog(show: Boolean) {
+        _state.update { it.copy(showDeleteDialog = show) }
     }
 
     fun updateProfile(displayName: String, bio: String) {

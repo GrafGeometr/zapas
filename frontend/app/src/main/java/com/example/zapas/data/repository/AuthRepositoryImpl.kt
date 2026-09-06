@@ -2,7 +2,7 @@ package com.example.zapas.data.repository
 
 import arrow.core.Either
 import arrow.core.flatMap
-import com.example.zapas.data.api.AuthApiService
+import com.example.zapas.data.api.services.AuthApiService
 import com.example.zapas.data.api.dto.request.LoginRequestDto
 import com.example.zapas.data.api.dto.request.RegisterRequestDto
 import com.example.zapas.data.api.util.safeApiCall

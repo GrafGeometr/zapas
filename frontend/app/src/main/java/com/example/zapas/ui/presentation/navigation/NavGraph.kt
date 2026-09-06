@@ -4,8 +4,8 @@ import androidx.compose.runtime.Composable
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.example.zapas.ui.presentation.screens.auth.LoginScreen
-import com.example.zapas.ui.presentation.screens.auth.RegisterScreen
+import com.example.zapas.ui.presentation.screens.auth.login.LoginScreen
+import com.example.zapas.ui.presentation.screens.auth.register.RegisterScreen
 import com.example.zapas.ui.presentation.screens.profile.ProfileScreen
 import com.example.zapas.ui.presentation.screens.rooms.RoomsScreen
 import com.example.zapas.ui.presentation.screens.splash.SplashScreen
