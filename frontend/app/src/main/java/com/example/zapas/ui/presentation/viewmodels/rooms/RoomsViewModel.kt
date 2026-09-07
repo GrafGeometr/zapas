@@ -1,27 +1,30 @@
 package com.example.zapas.ui.presentation.viewmodels.rooms
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import androidx.paging.LoadState
 import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.PagingData
-import com.example.zapas.data.api.services.RoomsApiService
-import javax.inject.Inject
 import androidx.paging.PagingSource
 import androidx.paging.PagingState
+import androidx.paging.cachedIn
 import androidx.paging.compose.LazyPagingItems
+import com.example.zapas.data.api.dto.response.RoomProfileDto
+import com.example.zapas.data.api.dto.response.RoomsDto
+import com.example.zapas.data.api.services.RoomsApiService
 import com.example.zapas.domain.models.Room
 import com.example.zapas.ui.presentation.utils.PagingSourceList
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.Flow
 import retrofit2.HttpException
-import com.example.zapas.data.api.dto.response.RoomsDto
-import com.example.zapas.data.api.dto.response.RoomProfileDto
-import dagger.hilt.android.lifecycle.HiltViewModel
+import retrofit2.Response
+import javax.inject.Inject
 
 class RoomsPagingSource(
     private val roomApi: RoomsApiService
 ) : PagingSource<Int, Room>() {
-    override fun getRefreshKey(state: PagingState<Int, Room>) =
+    override fun getRefreshKey(state: PagingState<Int, Room>): Int? =
         state.anchorPosition?.let { position ->
             state.closestPageToPosition(position)?.let { page ->
                 page.prevKey?.plus(1) ?: page.nextKey?.minus(1)
@@ -30,33 +33,26 @@ class RoomsPagingSource(
 
     override suspend fun load(params: LoadParams<Int>): LoadResult<Int, Room> = try {
         val key = params.key
-
-        val response = roomApi.rooms(key, params.loadSize)
+        val response: Response<RoomsDto> = roomApi.rooms(key, params.loadSize)
 
         if (!response.isSuccessful) {
             LoadResult.Error(HttpException(response))
         } else {
-
-            val result = response.body()!!
-
-            val rooms = result.data.map {
+            val result: RoomsDto = response.body()!!
+            val roomList = result.data.map { dto: RoomProfileDto ->
                 Room(
-                    bio = it.bio,
-                    createdAt = it.createdAt,
-                    displayName = it.displayName,
-                    id = it.id,
-                    expiredNotify = it.expiredNotify,
-                    reviewInterval = it.reviewInterval
+                    bio = dto.bio,
+                    createdAt = dto.createdAt,
+                    displayName = dto.displayName,
+                    id = dto.id,
+                    expiredNotify = dto.expiredNotify,
+                    reviewInterval = dto.reviewInterval
                 )
             }
 
-
-
             LoadResult.Page(
-                data = rooms,
-
+                data = roomList,
                 prevKey = result.prevPage,
-
                 nextKey = result.nextPage
             )
         }
@@ -65,21 +61,21 @@ class RoomsPagingSource(
     }
 }
 
-
 @HiltViewModel
 class RoomsViewModel @Inject constructor(
     private val roomApi: RoomsApiService
 ) : ViewModel() {
-    private var activePagingSource: RoomsPagingSource? = null
 
     val rooms: Flow<PagingData<Room>> = Pager(
         config = PagingConfig(
-            pageSize = 20, prefetchDistance = 5
-        ), pagingSourceFactory = {
-            RoomsPagingSource(roomApi).also { source ->
-                activePagingSource = source
-            }
-        }).flow
+            pageSize = 30,
+            prefetchDistance = 5,
+            initialLoadSize = 30
+        ),
+        pagingSourceFactory = {
+            RoomsPagingSource(roomApi)
+        }
+    ).flow.cachedIn(viewModelScope)
 }
 
 class RoomsPagingSourceList(
@@ -103,6 +99,3 @@ class RoomsPagingSourceList(
         items.retry()
     }
 }
-
-
-

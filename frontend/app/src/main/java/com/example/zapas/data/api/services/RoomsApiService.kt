@@ -17,7 +17,7 @@ import retrofit2.http.Query
 
 interface RoomsApiService {
     @GET("room/all")
-    suspend fun rooms(@Query("num") num: Int?, @Query("size") size: Int): Response<RoomsDto>
+    suspend fun rooms(@Query("page") num: Int?, @Query("size") size: Int): Response<RoomsDto>
 
     @POST("room/invite/{token}")
     suspend fun invite(@Path("token") tokenString: String): Response<UuidDto>
