@@ -7,7 +7,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import androidx.core.content.edit
 
-class SharedPreferencesStorage(
+class SharedPreferenceStorage(
     private val context: Context
 ) : KeyValueStorage {
     private val prefs: SharedPreferences by lazy {

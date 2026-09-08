@@ -136,7 +136,7 @@ class ProfileViewModel @Inject constructor(
         }
     }
 
-    private fun formatError(error: AppError): String {
+    private fun formatError(error: AppError): String? {
         return when (error) {
             is AppError.ApiError -> error.message
             is AppError.NetworkError -> "Ошибка сети. Проверьте подключение."

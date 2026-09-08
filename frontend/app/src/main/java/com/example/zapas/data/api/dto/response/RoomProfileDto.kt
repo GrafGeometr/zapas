@@ -1,14 +1,24 @@
 package com.example.zapas.data.api.dto.response
 
+import com.example.zapas.domain.models.Room
 import com.squareup.moshi.Json
 import com.squareup.moshi.JsonClass
 
 @JsonClass(generateAdapter = true)
-class RoomProfileDto (
+class RoomProfileDto(
     @Json(name = "bio") val bio: String,
     @Json(name = "created_at") val createdAt: String,
     @Json(name = "display_name") val displayName: String,
     @Json(name = "id") val id: String,
     @Json(name = "expired_notify") val expiredNotify: String?,
     @Json(name = "review_interval") val reviewInterval: String?
-)
+) : ResponseDto<Room> {
+    override fun toDomain() = Room(
+        bio = bio,
+        createdAt = createdAt,
+        displayName = displayName,
+        id = id,
+        expiredNotify = expiredNotify,
+        reviewInterval = reviewInterval
+    )
+}

@@ -1,5 +1,6 @@
 package com.example.zapas.data.api.dto.response
 
+import com.example.zapas.domain.models.RoomsPage
 import com.squareup.moshi.Json
 import com.squareup.moshi.JsonClass
 
@@ -9,7 +10,16 @@ data class RoomsDto(
     @Json(name = "next_page") val nextPage: Int?,
     @Json(name = "prev_page") val prevPage: Int?,
     @Json(name = "pag") val pag: Pag
-)
+) : ResponseDto<RoomsPage> {
+    override fun toDomain(): RoomsPage {
+        return RoomsPage(
+            rooms = data.map { it.toDomain() },
+            prevPage = prevPage,
+            nextPage = nextPage
+        )
+    }
+
+}
 
 @JsonClass(generateAdapter = true)
 data class Pag(

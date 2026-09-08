@@ -5,6 +5,8 @@ import com.example.zapas.data.api.services.AuthApiService
 import com.example.zapas.data.api.AuthInterceptor
 import com.example.zapas.data.api.services.RoomsApiService
 import com.example.zapas.data.api.services.UserApiService
+import com.squareup.moshi.Moshi
+import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -19,6 +21,14 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
+
+    @Provides
+    @Singleton
+    fun provideMoshi(): Moshi {
+        return Moshi.Builder()
+            .add(KotlinJsonAdapterFactory())
+            .build()
+    }
 
     @Provides
     @Singleton
@@ -49,9 +59,9 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideRetrofit(okHttpClient: OkHttpClient): Retrofit {
+    fun provideRetrofit(okHttpClient: OkHttpClient, moshi: Moshi): Retrofit {
         return Retrofit.Builder().baseUrl(BuildConfig.API_BASE_URL) // Ваш URL из build.gradle
-            .client(okHttpClient).addConverterFactory(MoshiConverterFactory.create()).build()
+            .client(okHttpClient).addConverterFactory(MoshiConverterFactory.create(moshi)).build()
     }
 
     @Provides

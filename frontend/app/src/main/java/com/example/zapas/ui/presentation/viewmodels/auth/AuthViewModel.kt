@@ -69,7 +69,7 @@ class AuthViewModel @Inject constructor(
             is AppError.ApiError -> when (code) {
                 401 -> "Неверный логин или пароль"
                 409 -> "Пользователь с таким именем уже существует"
-                else -> message
+                else -> msg
             }
             is AppError.NetworkError -> "Ошибка сети. Проверьте подключение к интернету"
             is AppError.UnknownError -> message ?: "Произошла неизвестная ошибка"
