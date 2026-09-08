@@ -3,10 +3,12 @@ package com.example.zapas.data.repository
 import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.PagingData
+import arrow.core.Either
 import com.example.zapas.data.api.dto.request.CreateRoomDto
 import com.example.zapas.data.api.services.RoomsApiService
 import com.example.zapas.data.api.util.NetworkErrorMapper
 import com.example.zapas.data.repository.paging.RoomsPagingSource
+import com.example.zapas.domain.models.AppError
 import com.example.zapas.domain.models.Room
 import com.example.zapas.domain.repository.RoomsRepository
 import kotlinx.coroutines.flow.Flow
@@ -26,6 +28,7 @@ class RoomsRepositoryImpl @Inject constructor(
             RoomsPagingSource(this)
         }).flow
 
-    override suspend fun createRoom(bio: String, displayName: String) =
+    override suspend fun createRoom(bio: String, displayName: String): Either<AppError, String> =
         networkErrorMapper.safeApiCall { roomApi.createRoom(CreateRoomDto(bio, displayName)) }
+            .map { it.id }
 }

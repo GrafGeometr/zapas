@@ -2,7 +2,6 @@ package com.example.zapas.domain.repository
 
 import androidx.paging.PagingData
 import arrow.core.Either
-import com.example.zapas.data.api.dto.response.UuidDto
 import com.example.zapas.domain.models.AppError
 import com.example.zapas.domain.models.Room
 import com.example.zapas.domain.models.RoomsPage
@@ -13,5 +12,5 @@ interface RoomsRepository {
 
     fun getRoomsPaged(): Flow<PagingData<Room>>
 
-    suspend fun createRoom(bio: String, displayName: String): Either<AppError, UuidDto> // ???
+    suspend fun createRoom(bio: String, displayName: String): Either<AppError, String> // ???
 }

@@ -40,6 +40,7 @@ import com.example.zapas.ui.presentation.viewmodels.rooms.RoomsViewModel
 @Composable
 fun RoomsScreen(
     onNavigateToProfile: () -> Unit,
+    onNavigateToCreateRoom: () -> Unit,
     onNavigateToRoom: (String) -> Unit = {},
     viewModel: RoomsViewModel = hiltViewModel()
 ) {
@@ -50,6 +51,7 @@ fun RoomsScreen(
     RoomScreenContent(
         items = items,
         onNavigateToProfile = onNavigateToProfile,
+        onNavigateToCreateRoom = onNavigateToCreateRoom,
         onNavigateToRoom = onNavigateToRoom
     )
 }
@@ -59,6 +61,7 @@ fun RoomsScreen(
 fun RoomScreenContent(
     items: PagingSourceList<Room>,
     onNavigateToProfile: () -> Unit,
+    onNavigateToCreateRoom: () -> Unit,
     onNavigateToRoom: (String) -> Unit = {}
 ) {
     Scaffold(topBar = {
@@ -68,7 +71,7 @@ fun RoomScreenContent(
             }
         })
     }, floatingActionButton = {
-        FloatingActionButton(onClick = { /* TODO: Создать комнату */ }) {
+        FloatingActionButton(onClick = onNavigateToCreateRoom) {
             Icon(Icons.Default.Add, "Создать комнату")
         }
     }) { paddingValues ->
@@ -203,5 +206,8 @@ fun RoomScreenPreview() {
                 expiredNotify = "Whatever",
                 reviewInterval = "Something"
             )
-        }), onNavigateToProfile = {})
+        }),
+        onNavigateToProfile = {},
+        onNavigateToCreateRoom = {}
+    )
 }

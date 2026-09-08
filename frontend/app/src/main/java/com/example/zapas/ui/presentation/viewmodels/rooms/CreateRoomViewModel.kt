@@ -32,8 +32,15 @@ class CreateRoomViewModel @Inject constructor(
             val result = roomsRepository.createRoom(bio, displayName)
 
             _state.value = result.fold(
-                ifLeft = { _: AppError -> CreateRoomState.Error(TODO()) },
-                ifRight = { it: UuidDto -> CreateRoomState.Success(it.id) })
+                ifLeft = { err: AppError ->
+                    val message = when (err) {
+                        is AppError.ApiError -> err.msg
+                        is AppError.NetworkError -> "Ошибка сети. Проверьте соединение."
+                        is AppError.UnknownError -> err.msg ?: "Неизвестная ошибка"
+                    }
+                    CreateRoomState.Error(message)
+                },
+                ifRight = { CreateRoomState.Success(it) })
         }
     }
 }

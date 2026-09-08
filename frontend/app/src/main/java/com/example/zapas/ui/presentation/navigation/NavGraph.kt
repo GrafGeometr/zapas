@@ -59,15 +59,23 @@ fun ZapasNavGraph(
             RoomsScreen(
                 onNavigateToProfile = {
                     navController.navigate(Profile)
-                })
+                },
+                onNavigateToCreateRoom = {
+                    navController.navigate(CreateRoom)
+                }
+            )
         }
 
         composable<CreateRoom> {
-            CreateRoomScreen(onBack = {
-                navController.navigate(Rooms) {
-                    popUpTo(0)
+            CreateRoomScreen(
+                onBack = {
+                    navController.popBackStack()
+                },
+                onSuccess = { roomId ->
+                    // Go back to the list. In a real app, you might navigate to the room details.
+                    navController.popBackStack()
                 }
-            }, onSuccess = { TODO() })
+            )
         }
 
         composable<Profile> {
