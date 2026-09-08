@@ -18,11 +18,8 @@ class NetworkErrorMapper @Inject constructor(
     inline fun <reified T> toEither(response: Response<T>): Either<AppError, T> {
         return if (response.isSuccessful) {
             val body = response.body()
-            if (body != null) {
-                body.right()
-            } else if (Unit is T) {
-                @Suppress("UNCHECKED_CAST")
-                (Unit as T).right()
+            body?.right() ?: if (Unit is T) {
+                @Suppress("UNCHECKED_CAST") (Unit as T).right()
             } else {
                 AppError.UnknownError("Empty response body").left()
             }
@@ -36,7 +33,7 @@ class NetworkErrorMapper @Inject constructor(
                 } else {
                     AppError.ApiError(response.code(), response.message())
                 }
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 AppError.ApiError(response.code(), response.message())
             }
             appError.left()

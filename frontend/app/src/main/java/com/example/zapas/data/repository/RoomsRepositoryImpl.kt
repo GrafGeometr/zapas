@@ -3,6 +3,7 @@ package com.example.zapas.data.repository
 import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.PagingData
+import com.example.zapas.data.api.dto.request.CreateRoomDto
 import com.example.zapas.data.api.services.RoomsApiService
 import com.example.zapas.data.api.util.NetworkErrorMapper
 import com.example.zapas.data.repository.paging.RoomsPagingSource
@@ -12,8 +13,7 @@ import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 
 class RoomsRepositoryImpl @Inject constructor(
-    private val roomApi: RoomsApiService,
-    private val networkErrorMapper: NetworkErrorMapper
+    private val roomApi: RoomsApiService, private val networkErrorMapper: NetworkErrorMapper
 ) : RoomsRepository {
     override suspend fun getRoomsList(
         key: Int?, size: Int
@@ -25,4 +25,7 @@ class RoomsRepositoryImpl @Inject constructor(
         ), pagingSourceFactory = {
             RoomsPagingSource(this)
         }).flow
+
+    override suspend fun createRoom(bio: String, displayName: String) =
+        networkErrorMapper.safeApiCall { roomApi.createRoom(CreateRoomDto(bio, displayName)) }
 }

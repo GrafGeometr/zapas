@@ -323,10 +323,10 @@ fun DeleteAccountDialog(
 class ProfileStateProvider : PreviewParameterProvider<ProfileState> {
     private val mockUser = User(
         id = "1",
-        username = "johndoe",
-        displayName = "John Doe",
-        bio = "Android Developer",
-        email = "john@example.com",
+        username = "bob_ross",
+        displayName = "Bob Ross",
+        bio = "Famous Painter",
+        email = "bob@ross.com",
         verifiedEmail = true,
         createdAt = "2023-01-01T00:00:00Z"
     )

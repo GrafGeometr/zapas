@@ -7,78 +7,77 @@ import androidx.navigation.compose.rememberNavController
 import com.example.zapas.ui.presentation.screens.auth.login.LoginScreen
 import com.example.zapas.ui.presentation.screens.auth.register.RegisterScreen
 import com.example.zapas.ui.presentation.screens.profile.ProfileScreen
+import com.example.zapas.ui.presentation.screens.rooms.CreateRoomScreen
 import com.example.zapas.ui.presentation.screens.rooms.RoomsScreen
 import com.example.zapas.ui.presentation.screens.splash.SplashScreen
 
 
 @Composable
 fun ZapasNavGraph(
-    startDestination: String = Destinations.SPLASH
+    startDestination: Any = Splash
 ) {
     val navController = rememberNavController()
 
     NavHost(
         navController = navController, startDestination = startDestination
     ) {
-        composable(Destinations.SPLASH) {
-            SplashScreen(
-                onNavigateToLogin = {
-                    navController.navigate(Destinations.LOGIN) {
-                        // Убираем сплэш-экран из стека
-                        popUpTo(Destinations.SPLASH) { inclusive = true }
-                    }
-                },
-                onNavigateToMain = {
-                    navController.navigate(Destinations.ROOMS) {
-                        popUpTo(Destinations.SPLASH) { inclusive = true }
-                    }
+        composable<Splash> {
+            SplashScreen(onNavigateToLogin = {
+                navController.navigate(Login) {
+                    // Убираем сплэш-экран из стека
+                    popUpTo<Splash> { inclusive = true }
                 }
-            )
-        }
-
-
-        composable(Destinations.LOGIN) {
-            LoginScreen(onLoginSuccess = {
-                navController.navigate(Destinations.ROOMS) {
-                    popUpTo(Destinations.LOGIN) { inclusive = true }
+            }, onNavigateToMain = {
+                navController.navigate(Rooms) {
+                    popUpTo<Splash> { inclusive = true }
                 }
-            }, onNavigateToRegister = {
-                navController.navigate(Destinations.REGISTER)
             })
         }
 
-        composable(Destinations.REGISTER) {
-            RegisterScreen(
-                onRegisterComplete = {
-                    navController.navigate(Destinations.ROOMS) {
-                        popUpTo(Destinations.LOGIN) { inclusive = true }
-                    }
-                },
-                onBack = {
-                    navController.popBackStack()
+
+        composable<Login> {
+            LoginScreen(onLoginSuccess = {
+                navController.navigate(Rooms) {
+                    popUpTo<Login> { inclusive = true }
                 }
-            )
+            }, onNavigateToRegister = {
+                navController.navigate(Register)
+            })
         }
 
-        composable(Destinations.ROOMS) {
+        composable<Register> {
+            RegisterScreen(onRegisterComplete = {
+                navController.navigate(Rooms) {
+                    popUpTo<Login> { inclusive = true }
+                }
+            }, onBack = {
+                navController.popBackStack()
+            })
+        }
+
+        composable<Rooms> {
             RoomsScreen(
                 onNavigateToProfile = {
-                    navController.navigate(Destinations.PROFILE)
-                }
-            )
+                    navController.navigate(Profile)
+                })
         }
 
-        composable(Destinations.PROFILE) {
-            ProfileScreen(
-                onLogout = {
-                    navController.navigate(Destinations.LOGIN) {
-                        popUpTo(0)
-                    }
-                },
-                onBack = {
-                    navController.popBackStack()
+        composable<CreateRoom> {
+            CreateRoomScreen(onBack = {
+                navController.navigate(Rooms) {
+                    popUpTo(0)
                 }
-            )
+            }, onSuccess = { TODO() })
+        }
+
+        composable<Profile> {
+            ProfileScreen(onLogout = {
+                navController.navigate(Login) {
+                    popUpTo(0)
+                }
+            }, onBack = {
+                navController.popBackStack()
+            })
         }
     }
 }
