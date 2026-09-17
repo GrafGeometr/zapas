@@ -4,7 +4,7 @@ use crate::{
     err::{AppErr, AppErrJson, ToAppErr},
     web::v1::{
         middleware::auth_middleware,
-        pag::{Pag, PagRes},
+        pag::{Pag, PagRes, PagVal},
     },
 };
 use axum::{
@@ -138,65 +138,36 @@ pub async fn rooms(
 ) -> Result<Json<PagRes<RoomProfileDto>>, AppErr> {
     pag.validate()?;
 
-    let mut res = PagRes::new(pag);
+    let f = async |pag: PagVal| {
+        let res = sqlx::query_as!(
+            RoomProfileDb,
+            r#"
+            select
+                r.id,
+                r.display_name,
+                r.bio,
+                r.review_interval,
+                r.expired_notify,
+                r.created_at
+            from rooms as r
+            join members as m on m.room_id = r.id
+            where m.user_id = $1
+            order by m.created_at
+            offset $2 limit $3"#,
+            user_id,
+            pag.offset,
+            pag.limit
+        )
+        .fetch_all(&app.pool)
+        .await
+        .app_log()?
+        .into_iter()
+        .map(|x| x.into())
+        .collect();
+        Ok(res)
+    };
 
-    let offset = (pag.offset() - pag.limit()).max(0);
-    let limit = pag.limit() * 2 + 1;
-    res.data = sqlx::query_as!(
-        RoomProfileDb,
-        r#"
-        select
-            r.id,
-            r.display_name,
-            r.bio,
-            r.review_interval,
-            r.expired_notify,
-            r.created_at
-        from rooms as r
-        join members as m on m.room_id = r.id
-        where m.user_id = $1
-        order by m.created_at
-        offset $2 limit $3"#,
-        user_id,
-        offset,
-        limit
-    )
-    .fetch_all(&app.pool)
-    .await
-    .app_log()?
-    .into_iter()
-    .map(|x| x.into())
-    .collect();
-
-    let len = res.data.len() as i64;
-    if pag.page == 0 {
-        res.prev_page = None;
-        res.next_page = if len > pag.limit() {
-            Some(pag.page + 1)
-        } else {
-            None
-        };
-        res.data.truncate(pag.limit() as usize);
-    } else {
-        if len == 0 {
-            res.prev_page = None;
-            res.next_page = None;
-            res.data.clear();
-        } else if len <= pag.limit() {
-            res.prev_page = Some(pag.page - 1);
-            res.next_page = None;
-            res.data.clear();
-        } else if len <= pag.limit() * 2 {
-            res.prev_page = Some(pag.page - 1);
-            res.next_page = None;
-            res.data.drain(0..pag.limit() as usize);
-        } else {
-            res.prev_page = Some(pag.page - 1);
-            res.next_page = Some(pag.page + 1);
-            res.data.drain(0..pag.limit() as usize);
-        }
-    }
-    Ok(Json(res))
+    Ok(Json(PagRes::new_async(pag, f).await?))
 }
 
 #[utoipa::path(post,
@@ -314,7 +285,7 @@ pub async fn delete_room(
         Pag
     ),
     responses(
-        (status = 200, body = [MemberDto], description = "List of room memberships"),
+        (status = 200, body = PagRes<MemberDto>, description = "List of room memberships"),
         (status = 401, body = AppErrJson, description = "Unathorized. Check prolongation"),
         (status = 404, body = AppErrJson, description = "Room not found or user is not a member"),
         (status = 500, body = AppErrJson, description = "Internal server error")
@@ -324,12 +295,13 @@ pub async fn all_members(
     Extension(user_id): Extension<Uuid>,
     Path(room_id): Path<Uuid>,
     Query(pag): Query<Pag>,
-) -> Result<Json<Vec<MemberDto>>, AppErr> {
+) -> Result<Json<PagRes<MemberDto>>, AppErr> {
     pag.validate()?;
 
-    let res = sqlx::query_as!(
-        MemberDto,
-        r#"
+    let f = async |pag: PagVal| {
+        let res = sqlx::query_as!(
+            MemberDto,
+            r#"
         select
             v.id as "id!",
             v.user_id,
@@ -344,20 +316,18 @@ pub async fn all_members(
         order by v.created_at
         offset $3 limit $4
         "#,
-        user_id,
-        room_id,
-        pag.offset(),
-        pag.limit()
-    )
-    .fetch_all(&app.pool)
-    .await
-    .app_log()?;
+            user_id,
+            room_id,
+            pag.offset,
+            pag.limit
+        )
+        .fetch_all(&app.pool)
+        .await
+        .app_log()?;
+        Ok(res)
+    };
 
-    if res.is_empty() {
-        return Err(AppErr::NotFound);
-    }
-
-    Ok(Json(res))
+    Ok(Json(PagRes::new_async(pag, f).await?))
 }
 
 #[utoipa::path(post,
@@ -467,7 +437,7 @@ pub async fn make_storage(
         Pag
     ),
     responses(
-        (status = 200, body = [StorageDto], description = "List of room's storages"),
+        (status = 200, body = PagRes<StorageDto>, description = "List of room's storages"),
         (status = 401, body = AppErrJson, description = "Unathorized. Check prolongation"),
         (status = 404, body = AppErrJson, description = "Room not found or user is not a member"),
         (status = 500, body = AppErrJson, description = "Internal server error")
@@ -477,12 +447,13 @@ pub async fn all_storages(
     Extension(user_id): Extension<Uuid>,
     Path(room_id): Path<Uuid>,
     Query(pag): Query<Pag>,
-) -> Result<Json<Vec<StorageDto>>, AppErr> {
+) -> Result<Json<PagRes<StorageDto>>, AppErr> {
     pag.validate()?;
 
-    let res = sqlx::query_as!(
-        StorageDb,
-        r#"
+    let f = async |pag: PagVal| {
+        let res = sqlx::query_as!(
+            StorageDb,
+            r#"
         select
             s.id,
             s.room_id,
@@ -499,16 +470,21 @@ pub async fn all_storages(
         order by s.created_at
         offset $3 limit $4
         )"#,
-        user_id,
-        room_id,
-        pag.offset(),
-        pag.limit()
-    )
-    .fetch_all(&app.pool)
-    .await
-    .app_log()?;
+            user_id,
+            room_id,
+            pag.offset,
+            pag.limit
+        )
+        .fetch_all(&app.pool)
+        .await
+        .app_log()?
+        .into_iter()
+        .map(|x| x.into())
+        .collect();
+        Ok(res)
+    };
 
-    Ok(Json(res.into_iter().map(|x| x.into()).collect()))
+    Ok(Json(PagRes::new_async(pag, f).await?))
 }
 
 #[utoipa::path(get,
@@ -672,7 +648,7 @@ pub async fn new_credit(
     path = "/api/v1/room/{room_id}/transactions",
     tag = "transactions",
     responses(
-        (status = 200, body = [TransactionDto], description = "..."),
+        (status = 200, body = PagRes<TransactionDto>, description = "..."),
         (status = 401, body = AppErrJson, description = "Unathorized. Check prolongation"),
         (status = 500, body = AppErrJson, description = "Internal server error")
     ))]
@@ -681,12 +657,13 @@ pub async fn all_transactions(
     Extension(user_id): Extension<Uuid>,
     Path(room_id): Path<Uuid>,
     Query(pag): Query<Pag>,
-) -> Result<Json<Vec<TransactionDto>>, AppErr> {
+) -> Result<Json<PagRes<TransactionDto>>, AppErr> {
     pag.validate()?;
 
-    let res = sqlx::query_as!(
-        TransactionDto,
-        r#"
+    let f = async |pag: PagVal| {
+        let res = sqlx::query_as!(
+            TransactionDto,
+            r#"
         select
             t.id,
             t.from_member_id as member_from,
@@ -699,14 +676,16 @@ pub async fn all_transactions(
         where m.room_id = $2 and check_member_exists($1, $2)
         order by t.created_at
         offset $3 limit $4"#,
-        user_id,
-        room_id,
-        pag.offset(),
-        pag.limit()
-    )
-    .fetch_all(&app.pool)
-    .await
-    .app_log()?;
+            user_id,
+            room_id,
+            pag.offset,
+            pag.limit
+        )
+        .fetch_all(&app.pool)
+        .await
+        .app_log()?;
+        Ok(res)
+    };
 
-    Ok(Json(res))
+    Ok(Json(PagRes::new_async(pag, f).await?))
 }

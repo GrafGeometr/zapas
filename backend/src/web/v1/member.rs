@@ -2,7 +2,10 @@ use super::dto::*;
 use crate::{
     app::App,
     err::{AppErr, AppErrJson, ToAppErr},
-    web::v1::{middleware::auth_middleware, pag::Pag},
+    web::v1::{
+        middleware::auth_middleware,
+        pag::{Pag, PagRes, PagVal},
+    },
 };
 use axum::{
     Extension, Json, Router,
@@ -347,7 +350,7 @@ pub async fn portion_calendar(
     path = "/api/v1/member/{member_id}/transactions",
     tag = "transactions",
     responses(
-        (status = 200, body = [TransactionDto], description = "..."),
+        (status = 200, body = PagRes<TransactionDto>, description = "..."),
         (status = 401, body = AppErrJson, description = "Unathorized. Check prolongation"),
         (status = 500, body = AppErrJson, description = "Internal server error")
     ))]
@@ -356,12 +359,13 @@ pub async fn all_transactions_for_member(
     Extension(user_id): Extension<Uuid>,
     Path(member_id): Path<Uuid>,
     Query(pag): Query<Pag>,
-) -> Result<Json<Vec<TransactionDto>>, AppErr> {
+) -> Result<Json<PagRes<TransactionDto>>, AppErr> {
     pag.validate()?;
 
-    let res = sqlx::query_as!(
-        TransactionDto,
-        r#"
+    let f = async |pag: PagVal| {
+        let res = sqlx::query_as!(
+            TransactionDto,
+            r#"
         select
             t.id,
             t.from_member_id as member_from,
@@ -375,14 +379,16 @@ pub async fn all_transactions_for_member(
             check_member_exists($1, $2)
         order by t.created_at
         offset $3 limit $4"#,
-        user_id,
-        member_id,
-        pag.offset(),
-        pag.limit()
-    )
-    .fetch_all(&app.pool)
-    .await
-    .app_log()?;
+            user_id,
+            member_id,
+            pag.offset,
+            pag.limit
+        )
+        .fetch_all(&app.pool)
+        .await
+        .app_log()?;
+        Ok(res)
+    };
 
-    Ok(Json(res))
+    Ok(Json(PagRes::new_async(pag, f).await?))
 }

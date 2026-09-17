@@ -175,7 +175,7 @@ pub struct SetTimingDto {
     pub expired_notify: Option<i64>,
 }
 
-#[derive(Serialize, ToSchema)]
+#[derive(Clone, Serialize, ToSchema)]
 pub struct MemberDto {
     pub id: Uuid,
     pub user_id: Option<Uuid>,
@@ -236,7 +236,7 @@ pub struct MakeStorageDto {
     pub bio: String,
 }
 
-#[derive(Serialize, ToSchema)]
+#[derive(Clone, Serialize, ToSchema)]
 pub struct StorageDto {
     pub id: Uuid,
     pub room_id: Uuid,
@@ -462,7 +462,7 @@ pub struct MakeTransactionDto {
     pub bio: String,
 }
 
-#[derive(Serialize, ToSchema)]
+#[derive(Clone, Serialize, ToSchema)]
 pub struct TransactionDto {
     pub id: Uuid,
 
