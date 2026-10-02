@@ -36,6 +36,15 @@ pub enum AppErr {
 
     #[error("Jwt parse/gen error")]
     Jwt(#[from] jsonwebtoken::errors::Error),
+
+    #[error("Not found")]
+    NotFound,
+
+    #[error("Wrong username or password")]
+    BadUsername,
+
+    #[error("Wrong username or password")]
+    BadPasswd,
 }
 
 /// Возвращаемый тип ошибки для пользователя.
@@ -91,6 +100,11 @@ impl AppErr {
             AppErr::DeleteToken => StatusCode::UNAUTHORIZED,
 
             AppErr::Jwt(_) => StatusCode::BAD_REQUEST,
+
+            AppErr::NotFound => StatusCode::NOT_FOUND,
+
+            AppErr::BadUsername => StatusCode::UNAUTHORIZED,
+            AppErr::BadPasswd => StatusCode::UNAUTHORIZED,
         }
     }
 
@@ -111,5 +125,13 @@ impl IntoResponse for AppErr {
         };
 
         (code, Json(json)).into_response()
+    }
+}
+
+impl From<sqlx::Error> for AppErr {
+    #[track_caller]
+    fn from(err: sqlx::Error) -> Self {
+        error!("Internal error: {}", err);
+        Self::Internal
     }
 }

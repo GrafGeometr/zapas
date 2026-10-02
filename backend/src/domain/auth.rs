@@ -41,8 +41,9 @@
 //! - Иначе это неизвестный токен.
 //!
 //! Получается цепочка, из которой есть лишь небольшие ответления.
-use crate::err::{AppErr, GlobalErr};
+use crate::err::AppErr;
 use chrono::{DateTime, Duration, Utc};
+use ipnetwork::IpNetwork;
 use jsonwebtoken::{DecodingKey, EncodingKey, Header, Validation, decode, encode};
 use serde::{Deserialize, Serialize};
 use std::net::IpAddr;
@@ -71,7 +72,7 @@ pub struct UserSession {
 }
 
 /// Stateless токен. Быстрый, короткоживыщий, мало функций.
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct AccessToken {
     user: Uuid,
     session: Uuid,
@@ -84,7 +85,7 @@ pub struct AccessToken {
 }
 
 /// Statefull токен. Медленный, долгоживущий, много функций.
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct RefreshToken {
     user: Uuid,
     session: Uuid,
@@ -98,7 +99,7 @@ pub struct RefreshToken {
 }
 
 /// Объединение всех auth токенов.
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum AuthToken {
     Access(AccessToken),
@@ -129,6 +130,27 @@ pub struct JwtService {
 }
 
 impl Session {
+    /// Загрузка сессии из значений ее полей.
+    pub fn restore(
+        id: Uuid,
+        user: Uuid,
+        ver: i64,
+        ip: IpNetwork,
+        last_active_at: DateTime<Utc>,
+        created_at: DateTime<Utc>,
+    ) -> Self {
+        Self {
+            id,
+            user,
+            ver,
+            ip: ip.ip(),
+            last_active_at,
+            created_at,
+            need_delete: false,
+            need_upd: false,
+        }
+    }
+
     /// Создание новой сессии.
     ///
     /// Происходит, как правило, при `login`.
@@ -274,6 +296,11 @@ impl AccessToken {
 }
 
 impl RefreshToken {
+    /// id сессии.
+    pub fn session(&self) -> Uuid {
+        self.session
+    }
+
     /// Новое время жизни для токена.
     fn new_exp() -> i64 {
         (Utc::now() + REFRESH_EXP).timestamp()
@@ -321,11 +348,6 @@ impl JwtService {
         }
     }
 
-    /// Создание сервиса, используя секрет из переменной окружения.
-    pub fn from_env() -> Result<Self, GlobalErr> {
-        Ok(Self::new(&std::env::var("AUTH_JWT")?))
-    }
-
     /// Кодирование токена.
     pub fn encode(&self, token: impl Into<AuthToken>) -> Result<TokenData, AppErr> {
         let token: AuthToken = token.into();
@@ -345,8 +367,8 @@ impl JwtService {
     fn remove_bearer(s: &str) -> &str {
         let s = s.trim();
 
-        if s.starts_with(Self::BEARER) {
-            s[Self::BEARER.len()..].trim()
+        if let Some(s) = s.strip_prefix(Self::BEARER) {
+            s.trim()
         } else {
             s
         }

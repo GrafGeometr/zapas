@@ -1,3 +1,4 @@
 //! Модуль с алгоритмами и структурами, не зависящие от БД или http.
 pub mod auth;
 pub mod pag;
+pub mod passwd;

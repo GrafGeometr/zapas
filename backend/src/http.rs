@@ -7,6 +7,7 @@ use tracing::info;
 use utoipa::OpenApi;
 use utoipa_scalar::{Scalar, Servable};
 
+/// Запуск http сервера.
 pub async fn server(app: App) -> Result<(), GlobalErr> {
     info!("Start http server");
     let listener = tokio::net::TcpListener::bind("127.0.0.1:9000").await?;
@@ -14,27 +15,34 @@ pub async fn server(app: App) -> Result<(), GlobalErr> {
     Ok(())
 }
 
-fn router(_app: App) -> Router {
+/// Настройка хендлеров.
+fn router(app: App) -> Router {
     let scalar = Router::new().merge(Scalar::with_url("/scalar", ApiDoc::openapi()));
 
     let ping = Router::new()
         .route("/ping", get(ping))
         .route("/coffee", get(coffee));
 
-    let v1 = Router::new();
-
+    let v1 = Router::new().nest("/v1", v1::router(app));
     let api = Router::new().nest("/api", ping.merge(v1));
 
-    Router::new().merge(scalar).merge(api)
+    scalar.merge(api)
 }
 
 #[derive(OpenApi)]
-#[openapi(info(title = "Zapas API"), paths(ping, coffee))]
+#[openapi(
+    info(title = "Zapas API"),
+    paths(ping, coffee),
+    nest(
+        (path = "/api/v1", api = v1::V1Api)
+    )
+)]
 struct ApiDoc;
 
 #[utoipa::path(get,
     tag = "ping",
     path = "/api/ping",
+    description = "Ping",
     responses(
         (status = 200, content_type = "text/plain")
     )
@@ -46,6 +54,7 @@ async fn ping() -> &'static str {
 #[utoipa::path(get,
     tag = "ping",
     path = "/api/coffee",
+    description = "Teapot",
     responses(
         (status = 418)
     )
