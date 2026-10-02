@@ -21,6 +21,21 @@ pub enum AppErr {
 
     #[error("Validation error: {0}")]
     Validate(#[from] validator::ValidationErrors),
+
+    #[error("Invalid token")]
+    InvalidToken,
+
+    #[error("Unathorized")]
+    Unauthorized,
+
+    #[error("Need prolongation")]
+    NeedProlong,
+
+    #[error("Unathorized")]
+    DeleteToken,
+
+    #[error("Jwt parse/gen error")]
+    Jwt(#[from] jsonwebtoken::errors::Error),
 }
 
 /// Возвращаемый тип ошибки для пользователя.
@@ -66,13 +81,22 @@ impl AppErr {
         match self {
             AppErr::NotImpl => StatusCode::NOT_IMPLEMENTED,
             AppErr::Internal => StatusCode::INTERNAL_SERVER_ERROR,
+
             AppErr::Validate(_) => StatusCode::BAD_REQUEST,
+
+            AppErr::InvalidToken => StatusCode::BAD_REQUEST,
+
+            AppErr::Unauthorized => StatusCode::UNAUTHORIZED,
+            AppErr::NeedProlong => StatusCode::UNAUTHORIZED,
+            AppErr::DeleteToken => StatusCode::UNAUTHORIZED,
+
+            AppErr::Jwt(_) => StatusCode::BAD_REQUEST,
         }
     }
 
     /// Логирование для AppErr.
     fn trace(&self) {
-        warn!("AppErr: {}", self);
+        warn!("AppErr: {} --- {:?}", self, self);
     }
 }
 
