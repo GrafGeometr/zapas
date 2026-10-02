@@ -1,16 +1,17 @@
-use sqlx::PgPool;
-use tracing::{info, warn};
+pub mod app;
+pub mod domain;
+pub mod err;
+pub mod http;
 
-/// Глобальная ошибка всей программы. Происходит при конфигах и тд.
-pub type GlobalErr = Box<dyn std::error::Error>;
+use crate::{app::App, err::GlobalErr};
+use tracing::{info, warn};
 
 #[tokio::main]
 async fn main() -> Result<(), GlobalErr> {
     init_fmt();
     dotenv();
 
-    let pool = connect_db().await?;
-    migration(&pool).await?;
+    let _app = App::from_env().await?;
 
     Ok(())
 }
@@ -41,21 +42,6 @@ version: {}
         .pretty()
         .init();
     warn!("Session is coming");
-}
-
-/// Подключение к БД.
-async fn connect_db() -> Result<PgPool, GlobalErr> {
-    let db_url = std::env::var("DATABASE_URL")?;
-    let pool = sqlx::Pool::connect(&db_url).await?;
-    Ok(pool)
-}
-
-/// Миграция при запуске.
-async fn migration(pool: &PgPool) -> Result<(), GlobalErr> {
-    info!("Start migration");
-    sqlx::migrate!("./migrations").run(pool).await?;
-    info!("Finish migration");
-    Ok(())
 }
 
 /// Загрузка переменных окружения из `.env` файла.
