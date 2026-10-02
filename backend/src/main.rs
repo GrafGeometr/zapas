@@ -3,7 +3,7 @@ pub mod domain;
 pub mod err;
 pub mod http;
 
-use crate::{app::App, err::GlobalErr};
+use crate::{app::App, err::GlobalErr, http::server};
 use tracing::{info, warn};
 
 #[tokio::main]
@@ -11,7 +11,8 @@ async fn main() -> Result<(), GlobalErr> {
     init_fmt();
     dotenv();
 
-    let _app = App::from_env().await?;
+    let app = App::from_env().await?;
+    server(app).await?;
 
     Ok(())
 }
