@@ -22,7 +22,7 @@ pub enum AppErr {
     #[error("Validation error: {0}")]
     Validate(#[from] validator::ValidationErrors),
 
-    #[error("Invalid token")]
+    #[error("Invalid or expired token")]
     InvalidToken,
 
     #[error("Unathorized")]
@@ -31,11 +31,8 @@ pub enum AppErr {
     #[error("Need prolongation")]
     NeedProlong,
 
-    #[error("Unathorized")]
+    #[error("Token deleted")]
     DeleteToken,
-
-    #[error("Jwt parse/gen error")]
-    Jwt(#[from] jsonwebtoken::errors::Error),
 
     #[error("Not found")]
     NotFound,
@@ -45,6 +42,9 @@ pub enum AppErr {
 
     #[error("Wrong username or password")]
     BadPasswd,
+
+    #[error("Already exists: {0}")]
+    AlreadyExists(&'static str),
 }
 
 /// Возвращаемый тип ошибки для пользователя.
@@ -93,18 +93,17 @@ impl AppErr {
 
             AppErr::Validate(_) => StatusCode::BAD_REQUEST,
 
-            AppErr::InvalidToken => StatusCode::BAD_REQUEST,
+            AppErr::InvalidToken => StatusCode::FORBIDDEN,
 
-            AppErr::Unauthorized => StatusCode::UNAUTHORIZED,
-            AppErr::NeedProlong => StatusCode::UNAUTHORIZED,
-            AppErr::DeleteToken => StatusCode::UNAUTHORIZED,
-
-            AppErr::Jwt(_) => StatusCode::BAD_REQUEST,
+            AppErr::Unauthorized
+            | AppErr::NeedProlong
+            | AppErr::DeleteToken
+            | AppErr::BadUsername
+            | AppErr::BadPasswd => StatusCode::UNAUTHORIZED,
 
             AppErr::NotFound => StatusCode::NOT_FOUND,
 
-            AppErr::BadUsername => StatusCode::UNAUTHORIZED,
-            AppErr::BadPasswd => StatusCode::UNAUTHORIZED,
+            AppErr::AlreadyExists(_) => StatusCode::CONFLICT,
         }
     }
 
@@ -131,7 +130,20 @@ impl IntoResponse for AppErr {
 impl From<sqlx::Error> for AppErr {
     #[track_caller]
     fn from(err: sqlx::Error) -> Self {
-        error!("Internal error: {}", err);
-        Self::Internal
+        match err {
+            sqlx::Error::RowNotFound => Self::NotFound,
+
+            other => {
+                error!("Internal error: {}", other);
+                Self::Internal
+            }
+        }
+    }
+}
+
+impl From<jsonwebtoken::errors::Error> for AppErr {
+    fn from(x: jsonwebtoken::errors::Error) -> Self {
+        warn!("JWT error: {}", x);
+        Self::InvalidToken
     }
 }

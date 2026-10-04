@@ -41,7 +41,7 @@
 //! - Иначе это неизвестный токен.
 //!
 //! Получается цепочка, из которой есть лишь небольшие ответления.
-use crate::err::AppErr;
+use crate::err::{AppErr, ErrorLog};
 use chrono::{DateTime, Duration, Utc};
 use ipnetwork::IpNetwork;
 use jsonwebtoken::{DecodingKey, EncodingKey, Header, Validation, decode, encode};
@@ -56,7 +56,7 @@ const REFRESH_EXP: Duration = Duration::days(90);
 const ACCESS_EXP: Duration = Duration::seconds(60);
 
 /// Шаг для обновления `last_active_at`.
-const UPD_DELTA: Duration = Duration::seconds(20);
+const UPD_DELTA: Duration = Duration::hours(1);
 
 /// Структура с закодированным токеном.
 #[derive(Serialize, Deserialize, utoipa::ToSchema)]
@@ -212,6 +212,7 @@ impl Session {
             }
 
             if self.ver != refresh.refresh_ver {
+                self.need_delete = true;
                 Err(AppErr::DeleteToken)
             } else {
                 self.upd(ip);
@@ -351,7 +352,7 @@ impl JwtService {
     /// Кодирование токена.
     pub fn encode(&self, token: impl Into<AuthToken>) -> Result<TokenData, AppErr> {
         let token: AuthToken = token.into();
-        let token = encode(&Self::header(), &token, &self.en)?;
+        let token = encode(&Self::header(), &token, &self.en).log_err()?;
         Ok(TokenData { token })
     }
 

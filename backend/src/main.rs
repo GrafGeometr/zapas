@@ -1,7 +1,7 @@
-pub mod app;
-pub mod domain;
-pub mod err;
-pub mod http;
+mod app;
+mod domain;
+mod err;
+mod http;
 
 use crate::{app::App, err::GlobalErr, http::server};
 use tracing::{info, warn};

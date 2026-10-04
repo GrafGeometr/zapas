@@ -4,7 +4,10 @@ mod v1;
 use crate::{app::App, err::GlobalErr};
 use axum::{Router, http::StatusCode, routing::get};
 use tracing::info;
-use utoipa::OpenApi;
+use utoipa::{
+    Modify, OpenApi,
+    openapi::security::{HttpBuilder, SecurityScheme},
+};
 use utoipa_scalar::{Scalar, Servable};
 
 /// Запуск http сервера.
@@ -29,9 +32,28 @@ fn router(app: App) -> Router {
     scalar.merge(api)
 }
 
+/// Модификатор для jwt utoipa.
+struct SecurityAddon;
+
+impl Modify for SecurityAddon {
+    fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {
+        let comp = openapi.components.as_mut().expect("openapi components");
+        comp.add_security_scheme(
+            "jwt",
+            SecurityScheme::Http(
+                HttpBuilder::new()
+                    .scheme(utoipa::openapi::security::HttpAuthScheme::Bearer)
+                    .bearer_format("JWT")
+                    .build(),
+            ),
+        );
+    }
+}
+
 #[derive(OpenApi)]
 #[openapi(
     info(title = "Zapas API"),
+    modifiers(&SecurityAddon),
     paths(ping, coffee),
     nest(
         (path = "/api/v1", api = v1::V1Api)

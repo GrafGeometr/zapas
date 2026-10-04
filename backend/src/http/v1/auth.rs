@@ -54,8 +54,27 @@ pub struct AuthApi;
 
 #[derive(Deserialize, Validate, ToSchema)]
 struct LoginDto {
+    #[schema(example = "bob_ross")]
+    #[validate(length(min = 4, max = 63))]
     username: String,
+
+    #[schema(example = "super_password!67")]
+    #[validate(length(min = 1, max = 127))]
     passwd: String,
+}
+
+#[derive(Deserialize, IntoParams, ToSchema)]
+struct LogoutQuery {
+    #[serde(default)]
+    all: bool,
+}
+
+#[derive(Clone, Serialize, ToSchema)]
+struct SessionDto {
+    id: Uuid,
+    ip_addr: String,
+    last_active_at: DateTime<Utc>,
+    created_at: DateTime<Utc>,
 }
 
 #[utoipa::path(post,
@@ -66,7 +85,7 @@ struct LoginDto {
     responses(
         (status = 200, body = TokenData),
         (status = 500, body = AppErrJson, description = "Internal server error"),
-        (status = 400, body = AppErrJson, description = "Invalid (not valid) username or password"),
+        (status = 400, body = AppErrJson, description = "Invalid any data format (validation error)"),
         (status = 401, body = AppErrJson, description = "Wrong username or password")
     )
 )]
@@ -125,21 +144,18 @@ async fn login(
     Ok(Json(token))
 }
 
-#[derive(Deserialize, IntoParams, ToSchema)]
-struct LogoutQuery {
-    #[serde(default)]
-    all: bool,
-}
-
 #[utoipa::path(post,
     tag = "auth",
     path = "/me/logout",
     description = "Delete current or all sessions for user",
+    params(
+        LogoutQuery
+    ),
     responses(
         (status = 200),
         (status = 500, body = AppErrJson, description = "Internal server error"),
-        (status = 400, body = AppErrJson, description = "Invalid token (incorrect type, mismatch user_id or expired)"),
-        (status = 401, body = AppErrJson, description = "Token is missing or not verified (maybe deleted or ip changed)")
+        (status = 401, body = AppErrJson, description = "Token is missing or not verified (maybe deleted or ip changed)"),
+        (status = 403, body = AppErrJson, description = "Invalid or expired token"),
     ),
     security(
         ("jwt" = [])
@@ -163,23 +179,19 @@ async fn logout(
     Ok(())
 }
 
-#[derive(Clone, Serialize, ToSchema)]
-struct SessionDto {
-    id: Uuid,
-    ip_addr: String,
-    last_active_at: DateTime<Utc>,
-    created_at: DateTime<Utc>,
-}
-
 #[utoipa::path(get,
     tag = "auth",
     path = "/me/sessions",
     description = "List of sessions for user",
+    params(
+        Pag
+    ),
     responses(
         (status = 200, body = PagRes<SessionDto>),
         (status = 500, body = AppErrJson, description = "Internal server error"),
-        (status = 400, body = AppErrJson, description = "Invalid token (incorrect type, mismatch user_id or expired)"),
-        (status = 401, body = AppErrJson, description = "Token is missing or not verified (maybe deleted or ip changed)")
+        (status = 400, body = AppErrJson, description = "Invalid any data format (validation error)"),
+        (status = 401, body = AppErrJson, description = "Token is missing or not verified (maybe deleted or ip changed)"),
+        (status = 403, body = AppErrJson, description = "Invalid or expired token"),
     ),
     security(
         ("jwt" = [])
@@ -190,6 +202,8 @@ async fn list_sessions(
     Extension(user): Extension<UserSession>,
     Query(pag): Query<Pag>,
 ) -> Result<Json<PagRes<SessionDto>>, AppErr> {
+    pag.validate()?;
+
     let f = async |pag: PagArg| -> Result<_, AppErr> {
         let res: Vec<_> = sqlx::query!(
             r#"
@@ -230,8 +244,8 @@ async fn list_sessions(
     responses(
         (status = 200, body = TokenData),
         (status = 500, body = AppErrJson, description = "Internal server error"),
-        (status = 400, body = AppErrJson, description = "Invalid token (incorrect type, mismatch user_id or expired)"),
-        (status = 401, body = AppErrJson, description = "Token is missing or not verified (maybe deleted or ip changed)")
+        (status = 401, body = AppErrJson, description = "Token is missing or not verified (maybe deleted or ip changed)"),
+        (status = 403, body = AppErrJson, description = "Invalid or expired token"),
     ),
     security(
         ("jwt" = [])
@@ -265,8 +279,8 @@ async fn prolong(
     responses(
         (status = 200, body = TokenData),
         (status = 500, body = AppErrJson, description = "Internal server error"),
-        (status = 400, body = AppErrJson, description = "Invalid token (incorrect type, mismatch user_id or expired)"),
-        (status = 401, body = AppErrJson, description = "Token is missing or not verified (maybe deleted or ip changed)")
+        (status = 401, body = AppErrJson, description = "Token is missing or not verified (maybe deleted or ip changed)"),
+        (status = 403, body = AppErrJson, description = "Invalid or expired token"),
     ),
     security(
         ("jwt" = [])
@@ -389,7 +403,7 @@ async fn load_session(app: &App, id: Uuid) -> Result<Session, AppErr> {
     )
     .fetch_optional(&app.pool)
     .await?
-    .ok_or(AppErr::NotFound)?;
+    .ok_or(AppErr::Unauthorized)?;
 
     let session = Session::restore(x.id, x.user, x.ver, x.ip, x.last_active_at, x.created_at);
     Ok(session)
