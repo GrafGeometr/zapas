@@ -114,7 +114,7 @@ struct ChangePasswd {
 }
 
 #[derive(Deserialize, Validate, ToSchema)]
-struct UpdProfileDto {
+struct UpdUserProfileDto {
     #[validate(length(min = 4, max = 63), custom(function = validate_username))]
     username: Option<String>,
 
@@ -325,6 +325,7 @@ async fn other_user_by_id(
     responses(
         (status = 200, body = UserOther),
         (status = 500, body = AppErrJson, description = "Internal server error"),
+        (status = 400, body = AppErrJson, description = "Invalid any data format (validation error)"),
         (status = 401, body = AppErrJson, description = "Token is missing or not verified (maybe deleted or ip changed)"),
         (status = 403, body = AppErrJson, description = "Invalid or expired token"),
         (status = 404, body = AppErrJson, description = "User not found")
@@ -365,9 +366,11 @@ async fn other_user_by_username(
     tag = "user",
     path = "/me/passwd",
     description = "Change password and logout all",
+    request_body = ChangePasswd,
     responses(
         (status = 200),
         (status = 500, body = AppErrJson, description = "Internal server error"),
+        (status = 400, body = AppErrJson, description = "Invalid any data format (validation error)"),
         (status = 401, body = AppErrJson, description = "Token is missing or not verified (maybe deleted or ip changed)"),
         (status = 403, body = AppErrJson, description = "Invalid or expired token"),
         (status = 404, body = AppErrJson, description = "User not found (what?)"),
@@ -424,9 +427,11 @@ async fn change_passwd(
     tag = "user",
     path = "/me/profile",
     description = "Change profile (username, display_name, bio)",
+    request_body = UpdUserProfileDto,
     responses(
         (status = 200, body = UserMe),
         (status = 500, body = AppErrJson, description = "Internal server error"),
+        (status = 400, body = AppErrJson, description = "Invalid any data format (validation error)"),
         (status = 401, body = AppErrJson, description = "Token is missing or not verified (maybe deleted or ip changed)"),
         (status = 403, body = AppErrJson, description = "Invalid or expired token"),
         (status = 404, body = AppErrJson, description = "User not found (what?)"),
@@ -439,7 +444,7 @@ async fn change_passwd(
 async fn upd_profile(
     State(app): State<App>,
     Extension(user): Extension<UserSession>,
-    Json(upd): Json<UpdProfileDto>,
+    Json(upd): Json<UpdUserProfileDto>,
 ) -> Result<Json<UserMe>, AppErr> {
     upd.validate()?;
 
