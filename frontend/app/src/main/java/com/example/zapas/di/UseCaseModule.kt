@@ -18,6 +18,7 @@ import com.example.zapas.domain.usecase.rooms.GetRoomMembersUseCase
 import com.example.zapas.domain.usecase.rooms.GetRoomProfileUseCase
 import com.example.zapas.domain.usecase.rooms.GetRoomsListUseCase
 import com.example.zapas.domain.usecase.rooms.GetRoomsPagedUseCase
+import com.example.zapas.domain.usecase.rooms.JoinRoomUseCase
 import com.example.zapas.domain.usecase.rooms.UpdateRoomTimingsUseCase
 import dagger.Module
 import dagger.Provides
@@ -155,5 +156,13 @@ object UseCaseModule {
         roomsRepository: RoomsRepository
     ): DeleteRoomUseCase {
         return DeleteRoomUseCase(roomsRepository)
+    }
+
+    @Provides
+    @ViewModelScoped
+    fun provideJoinRoomUseCase(
+        roomsRepository: RoomsRepository
+    ): JoinRoomUseCase {
+        return JoinRoomUseCase(roomsRepository)
     }
 }

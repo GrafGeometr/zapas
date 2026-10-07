@@ -35,6 +35,10 @@ class RoomsRepositoryImpl @Inject constructor(
         networkErrorMapper.safeApiCall { roomApi.createRoom(CreateRoomDto(bio, displayName)) }
             .map { it.id }
 
+    override suspend fun joinRoom(token: String): Either<AppError, String> =
+        networkErrorMapper.safeApiCall { roomApi.invite(token) }
+            .map { it.id }
+
     override suspend fun getRoomProfile(roomId: String): Either<AppError, Room> =
         networkErrorMapper.safeApiCallMapped { roomApi.room(roomId) }
 

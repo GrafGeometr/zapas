@@ -23,6 +23,8 @@ interface RoomsRepository {
 
     suspend fun getInviteToken(roomId: String): Either<AppError, String>
 
+    suspend fun joinRoom(token: String): Either<AppError, String>
+
     suspend fun getRoomMembers(roomId: String, num: Int = 0, size: Int = 50): Either<AppError, List<MemberDto>>
 
     suspend fun deleteRoom(roomId: String): Either<AppError, Unit>
