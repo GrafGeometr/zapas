@@ -24,7 +24,7 @@ pub fn router(app: App) -> Router {
         .route("/{room_id}/delete", delete(room_delete))
         .route("/{room_id}/profile", post(upd_profile))
         .route("/{room_id}/timing", post(upd_timing))
-        .route("/invite/{token}", post(invite))
+        .route("/join/{token}", post(join))
         .route("/{room_id}/invite/gen", post(gen_invite))
         .layer(middleware::from_fn_with_state(app.clone(), auth_middleware))
         .with_state(app)
@@ -38,7 +38,7 @@ pub fn router(app: App) -> Router {
     room_delete,
     upd_profile,
     upd_timing,
-    invite,
+    join,
     gen_invite
 ))]
 pub struct RoomApi;
@@ -345,7 +345,7 @@ async fn upd_timing(
 
 #[utoipa::path(post,
     tag = "room",
-    path = "/invite",
+    path = "/join",
     description = "Invite to room with token",
     request_body = TokenData,
     responses(
@@ -358,12 +358,12 @@ async fn upd_timing(
         ("jwt" = [])
     )
 )]
-async fn invite(
+async fn join(
     State(app): State<App>,
     Extension(user): Extension<UserSession>,
-    Json(token): Json<TokenData>,
+    Path(token): Path<String>,
 ) -> Result<Json<UuidDto>, AppErr> {
-    let room_id = app.invite.check_invite(&token.token, user.user)?;
+    let room_id = app.invite.check_invite(&token, user.user)?;
 
     sqlx::query!(
         r#"

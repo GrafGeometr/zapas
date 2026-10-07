@@ -1,6 +1,6 @@
 //! Модуль с реализацией одноименной структуры.
 use crate::{
-    domain::{auth::JwtService, invite::InviteService},
+    domain::{auth::JwtService, invite::InviteService, sse::SseService},
     err::GlobalErr,
 };
 use sqlx::PgPool;
@@ -10,10 +10,9 @@ use tracing::info;
 #[derive(Clone)]
 pub struct App {
     pub pool: PgPool,
-
     pub jwt: JwtService,
-
     pub invite: InviteService,
+    pub sse: SseService,
 }
 
 impl App {
@@ -27,9 +26,10 @@ impl App {
             pool: sqlx::Pool::connect(db_url).await?,
             jwt: JwtService::new(auth_secret),
             invite: InviteService::new(invite_secret),
+            sse: SseService::new(),
         };
-        res.migration().await?;
 
+        res.migration().await?;
         info!("Create App State OK");
         Ok(res)
     }
