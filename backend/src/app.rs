@@ -1,5 +1,8 @@
 //! Модуль с реализацией одноименной структуры.
-use crate::{domain::auth::JwtService, err::GlobalErr};
+use crate::{
+    domain::{auth::JwtService, invite::InviteService},
+    err::GlobalErr,
+};
 use sqlx::PgPool;
 use tracing::info;
 
@@ -9,14 +12,21 @@ pub struct App {
     pub pool: PgPool,
 
     pub jwt: JwtService,
+
+    pub invite: InviteService,
 }
 
 impl App {
     /// Создание нового состояния.
-    pub async fn new(db_url: &str, auth_secret: &str) -> Result<Self, GlobalErr> {
+    pub async fn new(
+        db_url: &str,
+        auth_secret: &str,
+        invite_secret: &str,
+    ) -> Result<Self, GlobalErr> {
         let res = Self {
             pool: sqlx::Pool::connect(db_url).await?,
             jwt: JwtService::new(auth_secret),
+            invite: InviteService::new(invite_secret),
         };
         res.migration().await?;
 
@@ -26,7 +36,12 @@ impl App {
 
     /// Создание нового состояния. Переменные берутся из окружения.
     pub async fn from_env() -> Result<Self, GlobalErr> {
-        Self::new(&std::env::var("DATABASE_URL")?, &std::env::var("AUTH_JWT")?).await
+        Self::new(
+            &std::env::var("DATABASE_URL")?,
+            &std::env::var("AUTH_JWT")?,
+            &std::env::var("INVITE_JWT")?,
+        )
+        .await
     }
 
     /// Автоматическое применение миграций.

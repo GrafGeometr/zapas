@@ -2,7 +2,7 @@ use super::*;
 use crate::{
     app::App,
     domain::{
-        auth::UserSession,
+        auth::{TokenData, UserSession},
         pag::{Pag, PagArg, PagRes},
     },
     err::{AppErr, AppErrJson},
@@ -13,8 +13,8 @@ use axum::{
     middleware,
     routing::{delete, get, post},
 };
-use chrono::{DateTime, Utc};
-use utoipa::OpenApi;
+use chrono::{DateTime, Duration, Utc};
+use utoipa::{IntoParams, OpenApi};
 
 pub fn router(app: App) -> Router {
     Router::new()
@@ -24,12 +24,23 @@ pub fn router(app: App) -> Router {
         .route("/{room_id}/delete", delete(room_delete))
         .route("/{room_id}/profile", post(upd_profile))
         .route("/{room_id}/timing", post(upd_timing))
+        .route("/invite/{token}", post(invite))
+        .route("/{room_id}/invite/gen", post(gen_invite))
         .layer(middleware::from_fn_with_state(app.clone(), auth_middleware))
         .with_state(app)
 }
 
 #[derive(OpenApi)]
-#[openapi(paths(make, list_rooms, room_by_id, room_delete, upd_profile, upd_timing))]
+#[openapi(paths(
+    make,
+    list_rooms,
+    room_by_id,
+    room_delete,
+    upd_profile,
+    upd_timing,
+    invite,
+    gen_invite
+))]
 pub struct RoomApi;
 
 #[derive(Clone, Serialize, ToSchema)]
@@ -45,13 +56,23 @@ struct RoomDto {
     created_at: DateTime<Utc>,
 }
 
+#[derive(Clone, Copy, Deserialize, Validate, IntoParams)]
+struct InviteQuery {
+    /// None if for all
+    for_user: Option<Uuid>,
+
+    #[serde(default = "default_secs")]
+    #[validate(range(min = 1))]
+    secs: i64,
+}
+
 #[utoipa::path(post,
     tag = "room",
     path = "/make",
     description = "Make new room",
     request_body = ProfileDto,
     responses(
-        (status = 200, body = UuidDto),
+        (status = 200, body = UuidDto, description = "Room id"),
         (status = 500, body = AppErrJson, description = "Internal server error"),
         (status = 400, body = AppErrJson, description = "Invalid any data format (validation error)"),
         (status = 401, body = AppErrJson, description = "Token is missing or not verified (maybe deleted or ip changed)"),
@@ -63,12 +84,14 @@ struct RoomDto {
 )]
 async fn make(
     State(app): State<App>,
-    Extension(_user): Extension<UserSession>,
+    Extension(user): Extension<UserSession>,
     Json(profile): Json<ProfileDto>,
 ) -> Result<Json<UuidDto>, AppErr> {
     profile.validate()?;
 
-    let id = Uuid::now_v7();
+    let mut tx = app.pool.begin().await?;
+
+    let room_id = Uuid::now_v7();
     sqlx::query!(
         r#"
         insert into rooms (
@@ -78,14 +101,32 @@ async fn make(
         ) values (
             $1, $2, $3
         )"#,
-        id,
+        room_id,
         profile.display_name,
         profile.bio
     )
-    .execute(&app.pool)
+    .execute(&mut *tx)
     .await?;
 
-    Ok(Json(UuidDto { id }))
+    let member_id = Uuid::now_v7();
+    sqlx::query!(
+        r#"
+        insert into members (
+            id,
+            user_id,
+            room_id
+        ) values (
+            $1, $2, $3
+        )"#,
+        member_id,
+        user.user,
+        room_id
+    )
+    .execute(&mut *tx)
+    .await?;
+
+    tx.commit().await?;
+    Ok(Json(UuidDto { id: room_id }))
 }
 
 #[utoipa::path(get,
@@ -300,4 +341,94 @@ async fn upd_timing(
     .ok_or(AppErr::NotFound)?;
 
     Ok(Json(res))
+}
+
+#[utoipa::path(post,
+    tag = "room",
+    path = "/invite",
+    description = "Invite to room with token",
+    request_body = TokenData,
+    responses(
+        (status = 200, body = UuidDto, description = "Room id"),
+        (status = 500, body = AppErrJson, description = "Internal server error"),
+        (status = 401, body = AppErrJson, description = "Token is missing or not verified (maybe deleted or ip changed)"),
+        (status = 403, body = AppErrJson, description = "Invalid or expired token"),
+    ),
+    security(
+        ("jwt" = [])
+    )
+)]
+async fn invite(
+    State(app): State<App>,
+    Extension(user): Extension<UserSession>,
+    Json(token): Json<TokenData>,
+) -> Result<Json<UuidDto>, AppErr> {
+    let room_id = app.invite.check_invite(&token.token, user.user)?;
+
+    sqlx::query!(
+        r#"
+        insert into members (
+            id,
+            user_id,
+            room_id
+        ) values (
+            $1, $2, $3
+        )"#,
+        Uuid::now_v7(),
+        user.user,
+        room_id
+    )
+    .execute(&app.pool)
+    .await?;
+
+    Ok(Json(UuidDto { id: room_id }))
+}
+
+#[utoipa::path(post,
+    tag = "room",
+    path = "/{room_id}/invite/gen",
+    description = "Make new invite token",
+    params(
+      InviteQuery
+    ),
+    responses(
+        (status = 200, body = TokenData),
+        (status = 500, body = AppErrJson, description = "Internal server error"),
+        (status = 400, body = AppErrJson, description = "Invalid any data format (validation error)"),
+        (status = 401, body = AppErrJson, description = "Token is missing or not verified (maybe deleted or ip changed)"),
+        (status = 403, body = AppErrJson, description = "Invalid or expired token"),
+        (status = 404, body = AppErrJson, description = "Room not found"),
+    ),
+    security(
+        ("jwt" = [])
+    )
+)]
+async fn gen_invite(
+    State(app): State<App>,
+    Extension(user): Extension<UserSession>,
+    Path(room_id): Path<Uuid>,
+    Query(q): Query<InviteQuery>,
+) -> Result<Json<TokenData>, AppErr> {
+    q.validate()?;
+
+    sqlx::query!(
+        r#"
+        select id from members
+        where user_id = $1 and room_id = $2"#,
+        user.user,
+        room_id
+    )
+    .fetch_optional(&app.pool)
+    .await?
+    .ok_or(AppErr::NotFound)?;
+
+    let token = app
+        .invite
+        .make_invite(room_id, q.for_user, Duration::seconds(q.secs))?;
+
+    Ok(Json(token))
+}
+
+const fn default_secs() -> i64 {
+    16 * 60
 }

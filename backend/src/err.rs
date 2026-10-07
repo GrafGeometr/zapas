@@ -45,6 +45,9 @@ pub enum AppErr {
 
     #[error("Already exists: {0}")]
     AlreadyExists(&'static str),
+
+    #[error("Permission denied")]
+    PermDenied,
 }
 
 /// Возвращаемый тип ошибки для пользователя.
@@ -104,6 +107,8 @@ impl AppErr {
             AppErr::NotFound => StatusCode::NOT_FOUND,
 
             AppErr::AlreadyExists(_) => StatusCode::CONFLICT,
+
+            AppErr::PermDenied => StatusCode::FORBIDDEN,
         }
     }
 
