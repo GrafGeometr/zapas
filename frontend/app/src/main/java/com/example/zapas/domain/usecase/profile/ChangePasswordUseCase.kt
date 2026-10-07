@@ -15,7 +15,6 @@ class ChangePasswordUseCase @Inject constructor(
         val newPasswd: String
     )
 
-    override suspend fun invoke(params: Params): Either<AppError, Unit> {
-        return userRepository.changePassword(params.oldPasswd, params.newPasswd)
-    }
+    override suspend fun invoke(params: Params): Either<AppError, Unit> =
+        userRepository.changePassword(params.oldPasswd, params.newPasswd)
 }

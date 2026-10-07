@@ -2,9 +2,8 @@ package com.example.zapas.ui.presentation.viewmodels.rooms
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.zapas.data.api.dto.response.UuidDto
 import com.example.zapas.domain.models.AppError
-import com.example.zapas.domain.repository.RoomsRepository
+import com.example.zapas.domain.usecase.rooms.CreateRoomUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -20,7 +19,7 @@ sealed class CreateRoomState {
 
 @HiltViewModel
 class CreateRoomViewModel @Inject constructor(
-    private val roomsRepository: RoomsRepository
+    private val createRoomUseCase: CreateRoomUseCase
 ) : ViewModel() {
     private val _state = MutableStateFlow<CreateRoomState>(CreateRoomState.Idle)
     val state = _state.asStateFlow()
@@ -29,7 +28,7 @@ class CreateRoomViewModel @Inject constructor(
         viewModelScope.launch {
             _state.value = CreateRoomState.Loading
 
-            val result = roomsRepository.createRoom(bio, displayName)
+            val result = createRoomUseCase(CreateRoomUseCase.Params(bio = bio, displayName = displayName))
 
             _state.value = result.fold(
                 ifLeft = { err: AppError ->

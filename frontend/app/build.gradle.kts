@@ -38,7 +38,7 @@ android {
             )
 
             buildConfigField("boolean", "IS_DEBUG", "false")
-            buildConfigField("String", "API_BASE_URL", "\"https://api.production.com/\"")
+            buildConfigField("String", "API_BASE_URL", "\"https://yazorinv.duckdns.org/api/v1/\"")
         }
 
         debug {
@@ -113,6 +113,9 @@ dependencies {
 
     // Testing
     testImplementation(libs.junit)
+    testImplementation(libs.mockk)
+    testImplementation(libs.turbine)
+    testImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))

@@ -3,15 +3,11 @@ package com.example.zapas.ui.presentation.viewmodels.rooms
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.paging.LoadState
-import androidx.paging.Pager
-import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import androidx.paging.cachedIn
 import androidx.paging.compose.LazyPagingItems
-import com.example.zapas.data.api.services.RoomsApiService
-import com.example.zapas.data.repository.paging.RoomsPagingSource
 import com.example.zapas.domain.models.Room
-import com.example.zapas.domain.repository.RoomsRepository
+import com.example.zapas.domain.usecase.rooms.GetRoomsPagedUseCase
 import com.example.zapas.ui.presentation.utils.PagingSourceList
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.Flow
@@ -20,9 +16,9 @@ import javax.inject.Inject
 
 @HiltViewModel
 class RoomsViewModel @Inject constructor(
-    private val roomsRepository: RoomsRepository
+    private val getRoomsPagedUseCase: GetRoomsPagedUseCase
 ) : ViewModel() {
-    val rooms: Flow<PagingData<Room>> = roomsRepository.getRoomsPaged().cachedIn(viewModelScope)
+    val rooms: Flow<PagingData<Room>> = getRoomsPagedUseCase().cachedIn(viewModelScope)
 }
 
 class RoomsPagingSourceList(

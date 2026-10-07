@@ -1,6 +1,7 @@
 package com.example.zapas.di
 
 import com.example.zapas.domain.repository.AuthRepository
+import com.example.zapas.domain.repository.RoomsRepository
 import com.example.zapas.domain.repository.UserRepository
 import com.example.zapas.domain.usecase.auth.CheckAuthStatusUseCase
 import com.example.zapas.domain.usecase.auth.LoginUseCase
@@ -9,6 +10,15 @@ import com.example.zapas.domain.usecase.profile.ChangePasswordUseCase
 import com.example.zapas.domain.usecase.profile.DeleteUserUseCase
 import com.example.zapas.domain.usecase.profile.GetProfileUseCase
 import com.example.zapas.domain.usecase.profile.UpdateProfileUseCase
+import com.example.zapas.domain.usecase.rooms.CreateRoomUseCase
+import com.example.zapas.domain.usecase.rooms.DeleteRoomUseCase
+import com.example.zapas.domain.usecase.rooms.EditRoomProfileUseCase
+import com.example.zapas.domain.usecase.rooms.GetInviteTokenUseCase
+import com.example.zapas.domain.usecase.rooms.GetRoomMembersUseCase
+import com.example.zapas.domain.usecase.rooms.GetRoomProfileUseCase
+import com.example.zapas.domain.usecase.rooms.GetRoomsListUseCase
+import com.example.zapas.domain.usecase.rooms.GetRoomsPagedUseCase
+import com.example.zapas.domain.usecase.rooms.UpdateRoomTimingsUseCase
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -73,5 +83,77 @@ object UseCaseModule {
         userRepository: UserRepository
     ): DeleteUserUseCase {
         return DeleteUserUseCase(userRepository)
+    }
+
+    @Provides
+    @ViewModelScoped
+    fun provideCreateRoomUseCase(
+        roomsRepository: RoomsRepository
+    ): CreateRoomUseCase {
+        return CreateRoomUseCase(roomsRepository)
+    }
+
+    @Provides
+    @ViewModelScoped
+    fun provideGetRoomProfileUseCase(
+        roomsRepository: RoomsRepository
+    ): GetRoomProfileUseCase {
+        return GetRoomProfileUseCase(roomsRepository)
+    }
+
+    @Provides
+    @ViewModelScoped
+    fun provideGetRoomsListUseCase(
+        roomsRepository: RoomsRepository
+    ): GetRoomsListUseCase {
+        return GetRoomsListUseCase(roomsRepository)
+    }
+
+    @Provides
+    @ViewModelScoped
+    fun provideGetRoomsPagedUseCase(
+        roomsRepository: RoomsRepository
+    ): GetRoomsPagedUseCase {
+        return GetRoomsPagedUseCase(roomsRepository)
+    }
+
+    @Provides
+    @ViewModelScoped
+    fun provideEditRoomProfileUseCase(
+        roomsRepository: RoomsRepository
+    ): EditRoomProfileUseCase {
+        return EditRoomProfileUseCase(roomsRepository)
+    }
+
+    @Provides
+    @ViewModelScoped
+    fun provideUpdateRoomTimingsUseCase(
+        roomsRepository: RoomsRepository
+    ): UpdateRoomTimingsUseCase {
+        return UpdateRoomTimingsUseCase(roomsRepository)
+    }
+
+    @Provides
+    @ViewModelScoped
+    fun provideGetInviteTokenUseCase(
+        roomsRepository: RoomsRepository
+    ): GetInviteTokenUseCase {
+        return GetInviteTokenUseCase(roomsRepository)
+    }
+
+    @Provides
+    @ViewModelScoped
+    fun provideGetRoomMembersUseCase(
+        roomsRepository: RoomsRepository
+    ): GetRoomMembersUseCase {
+        return GetRoomMembersUseCase(roomsRepository)
+    }
+
+    @Provides
+    @ViewModelScoped
+    fun provideDeleteRoomUseCase(
+        roomsRepository: RoomsRepository
+    ): DeleteRoomUseCase {
+        return DeleteRoomUseCase(roomsRepository)
     }
 }

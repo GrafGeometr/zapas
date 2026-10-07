@@ -19,6 +19,7 @@ import androidx.compose.ui.tooling.preview.PreviewParameterProvider
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.zapas.domain.models.User
+import com.example.zapas.ui.presentation.components.PreviewableAlertDialog
 import com.example.zapas.ui.presentation.viewmodels.profile.ProfileState
 import com.example.zapas.ui.presentation.viewmodels.profile.ProfileViewModel
 import com.example.zapas.ui.theme.ZapasTheme
@@ -255,7 +256,7 @@ fun ChangePasswordDialog(
     var newPass by remember { mutableStateOf("") }
     var confirmPass by remember { mutableStateOf("") }
 
-    AlertDialog(onDismissRequest = onDismiss, title = { Text("Смена пароля") }, text = {
+    PreviewableAlertDialog(onDismissRequest = onDismiss, title = { Text("Смена пароля") }, text = {
         Column {
             OutlinedTextField(
                 value = oldPass,
@@ -299,7 +300,7 @@ fun ChangePasswordDialog(
 fun DeleteAccountDialog(
     onDismiss: () -> Unit, onConfirm: () -> Unit
 ) {
-    AlertDialog(
+    PreviewableAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Удалить аккаунт?") },
         text = { Text("Это действие необратимо. Все ваши данные будут удалены.") },

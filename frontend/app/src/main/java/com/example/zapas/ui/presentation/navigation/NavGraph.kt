@@ -8,6 +8,7 @@ import com.example.zapas.ui.presentation.screens.auth.login.LoginScreen
 import com.example.zapas.ui.presentation.screens.auth.register.RegisterScreen
 import com.example.zapas.ui.presentation.screens.profile.ProfileScreen
 import com.example.zapas.ui.presentation.screens.rooms.CreateRoomScreen
+import com.example.zapas.ui.presentation.screens.rooms.RoomProfileScreen
 import com.example.zapas.ui.presentation.screens.rooms.RoomsScreen
 import com.example.zapas.ui.presentation.screens.splash.SplashScreen
 
@@ -62,6 +63,9 @@ fun ZapasNavGraph(
                 },
                 onNavigateToCreateRoom = {
                     navController.navigate(CreateRoom)
+                },
+                onNavigateToRoom = { roomId ->
+                    navController.navigate(RoomProfile(roomId))
                 }
             )
         }
@@ -72,7 +76,14 @@ fun ZapasNavGraph(
                     navController.popBackStack()
                 },
                 onSuccess = { roomId ->
-                    // Go back to the list. In a real app, you might navigate to the room details.
+                    navController.navigate(RoomProfile(roomId))
+                }
+            )
+        }
+
+        composable<RoomProfile> {
+            RoomProfileScreen(
+                onBack = {
                     navController.popBackStack()
                 }
             )

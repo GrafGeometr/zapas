@@ -17,6 +17,8 @@ object Rooms
 @Serializable
 object CreateRoom
 
+@Serializable
+data class RoomProfile(val roomId: String)
 
 @Serializable
 object Profile
