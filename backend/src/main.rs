@@ -1,4 +1,5 @@
 mod app;
+mod background;
 mod domain;
 mod err;
 mod http;
@@ -12,6 +13,8 @@ async fn main() -> Result<(), GlobalErr> {
     dotenv();
 
     let app = App::from_env().await?;
+
+    tokio::spawn(background::sse_listener(app.clone()));
     server(app).await?;
 
     Ok(())

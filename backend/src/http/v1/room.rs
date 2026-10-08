@@ -345,9 +345,8 @@ async fn upd_timing(
 
 #[utoipa::path(post,
     tag = "room",
-    path = "/join",
+    path = "/join/{token}",
     description = "Invite to room with token",
-    request_body = TokenData,
     responses(
         (status = 200, body = UuidDto, description = "Room id"),
         (status = 500, body = AppErrJson, description = "Internal server error"),

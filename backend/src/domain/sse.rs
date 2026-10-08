@@ -1,5 +1,5 @@
 //! Модуль с сервисом доставки сообщений для SSE.
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
     sync::{Arc, Mutex},
@@ -10,16 +10,26 @@ use utoipa::ToSchema;
 use uuid::Uuid;
 
 /// Тип событий, которые могут приходить из SSE.
-#[derive(Clone, Copy, Serialize, ToSchema)]
+#[derive(Clone, Copy, Serialize, Deserialize, ToSchema)]
 pub enum EventType {
-    ListOfRoomsForUser,
+    Session,
+    User,
+
+    Member,
+
+    Room,
+    Storage,
+    Item,
 }
 
 /// Событие, о котором сообщается через SSE.
-#[derive(Clone, Copy, Serialize, ToSchema)]
+#[derive(Clone, Copy, Serialize, Deserialize, ToSchema)]
 pub struct EventMsg {
-    event_type: EventType,
-    id: Uuid,
+    pub event_type: EventType,
+
+    pub target_id: Uuid,
+    pub room_id: Option<Uuid>,
+    pub user_id: Option<Uuid>,
 }
 
 /// Сервис по доставке SSE сообщений внутри приложения.
