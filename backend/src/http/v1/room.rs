@@ -26,6 +26,8 @@ pub fn router(app: App) -> Router {
         .route("/{room_id}/timing", post(upd_timing))
         .route("/join/{token}", post(join))
         .route("/{room_id}/invite/gen", post(gen_invite))
+        .route("/{room_id}/new_storage", post(super::storage::make))
+        .route("/{room_id}/storages", get(super::storage::list_storages))
         .layer(middleware::from_fn_with_state(app.clone(), auth_middleware))
         .with_state(app)
 }
@@ -39,7 +41,9 @@ pub fn router(app: App) -> Router {
     upd_profile,
     upd_timing,
     join,
-    gen_invite
+    gen_invite,
+    super::storage::make,
+    super::storage::list_storages
 ))]
 pub struct RoomApi;
 
