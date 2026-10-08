@@ -1,4 +1,5 @@
 mod auth;
+mod email;
 mod room;
 mod sse;
 mod user;
@@ -14,8 +15,9 @@ pub fn router(app: App) -> Router {
     let user = Router::new().nest("/user", user::router(app.clone()));
     let room = Router::new().nest("/room", room::router(app.clone()));
     let sse = Router::new().nest("/sse", sse::router(app.clone()));
+    let email = Router::new().nest("/user", email::router(app.clone()));
 
-    auth.merge(user).merge(room).merge(sse)
+    auth.merge(user).merge(room).merge(sse).merge(email)
 }
 
 #[derive(OpenApi)]
@@ -25,6 +27,7 @@ pub fn router(app: App) -> Router {
         (path = "/user", api = user::UserApi),
         (path = "/room", api = room::RoomApi),
         (path = "/sse", api = sse::SseApi),
+        (path = "/user", api = email::EmailApi)
     )
 )]
 pub struct V1Api;
