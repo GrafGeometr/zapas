@@ -292,7 +292,6 @@ pub async fn make(
         (status = 400, body = AppErrJson, description = "Invalid any data format (validation error)"),
         (status = 401, body = AppErrJson, description = "Token is missing or not verified (maybe deleted or ip changed)"),
         (status = 403, body = AppErrJson, description = "Invalid or expired token"),
-        (status = 404, body = AppErrJson, description = "Room not found"),
     ),
     security(
         ("jwt" = [])
