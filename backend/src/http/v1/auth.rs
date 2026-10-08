@@ -58,7 +58,7 @@ struct LoginDto {
     #[validate(length(min = 4, max = 63))]
     username: String,
 
-    #[schema(example = "super_password!67")]
+    #[schema(example = "Super_password!67")]
     #[validate(length(min = 1, max = 127))]
     passwd: String,
 }

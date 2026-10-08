@@ -53,7 +53,10 @@ pub struct RoomApi;
 struct RoomDto {
     id: Uuid,
 
+    #[schema(example = "502")]
     display_name: String,
+
+    #[schema(example = "")]
     bio: String,
 
     review_interval: i64,

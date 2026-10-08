@@ -35,7 +35,10 @@ pub struct StorageDto {
     id: Uuid,
     room_id: Uuid,
 
+    #[schema(example = "Fridge")]
     display_name: String,
+
+    #[schema(example = "Fridge")]
     bio: String,
 
     review_interval: Option<i64>,

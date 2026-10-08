@@ -57,7 +57,7 @@ struct RegisterDto {
     #[validate(email, length(max = 255))]
     email: Option<String>,
 
-    #[schema(example = "super_password!67")]
+    #[schema(example = "Super_password!67")]
     #[validate(length(min = 12, max = 127), custom(function = validate_passwd))]
     passwd: String,
 
@@ -73,12 +73,20 @@ struct RegisterDto {
 #[derive(Serialize, ToSchema)]
 struct UserMe {
     id: Uuid,
+
+    #[schema(example = "bob_ross")]
     username: String,
 
+    #[schema(example = "bob.ross@example.com")]
     email: Option<String>,
+
+    #[schema(example = false)]
     verified_email: bool,
 
+    #[schema(example = "bob ross")]
     display_name: String,
+
+    #[schema(example = "")]
     bio: String,
 
     created_at: DateTime<Utc>,
@@ -87,15 +95,20 @@ struct UserMe {
 #[derive(Serialize, ToSchema)]
 struct UserOther {
     id: Uuid,
+
+    #[schema(example = "omega")]
     username: String,
 
+    #[schema(example = "omega bob")]
     display_name: String,
+
+    #[schema(example = "omega plus 1 bob")]
     bio: String,
 
     created_at: DateTime<Utc>,
 }
 
-#[derive(Deserialize, Validate, ToSchema)]
+#[derive(Deserialize, Validate)]
 struct UserNamePath {
     #[validate(length(min = 4, max = 63), custom(function = validate_username))]
     username: String,
@@ -104,11 +117,11 @@ struct UserNamePath {
 #[derive(Deserialize, Validate, ToSchema)]
 #[validate(schema(function = validate_change_passwd))]
 struct ChangePasswd {
-    #[schema(example = "super_password!67")]
+    #[schema(example = "Super_password!67")]
     #[validate(length(min = 12, max = 127))]
     old_passwd: String,
 
-    #[schema(example = "super_puper_password!67")]
+    #[schema(example = "Super_puper_password!67")]
     #[validate(length(min = 12, max = 127), custom(function = validate_passwd))]
     passwd: String,
 }
@@ -121,6 +134,7 @@ struct UpdUserProfileDto {
     #[validate(length(min = 1, max = 127))]
     display_name: Option<String>,
 
+    #[schema(example = "Bio")]
     #[validate(length(max = 1024))]
     bio: Option<String>,
 }
