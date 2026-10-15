@@ -4,6 +4,7 @@ use crate::{
         auth::UserSession,
         pag::{Pag, PagArg, PagRes},
     },
+    dto::*,
     err::{AppErr, AppErrJson},
 };
 use axum::{
@@ -12,7 +13,6 @@ use axum::{
     middleware,
     routing::{delete, get, post},
 };
-use chrono::{DateTime, NaiveDate, Utc};
 use validator::ValidationError;
 
 pub fn router(app: App) -> Router {
@@ -41,53 +41,6 @@ pub fn router(app: App) -> Router {
     portions_calendar
 ))]
 pub struct MemberApi;
-
-#[derive(Clone, Serialize, ToSchema)]
-pub struct MemberDto {
-    id: Uuid,
-
-    user_id: Option<Uuid>,
-    room_id: Uuid,
-
-    display_name: String,
-    bio: String,
-
-    created_at: DateTime<Utc>,
-}
-
-#[derive(Serialize, ToSchema)]
-struct OriginMemberDto {
-    id: Uuid,
-
-    user_id: Option<Uuid>,
-    room_id: Uuid,
-
-    display_name: Option<String>,
-    bio: Option<String>,
-
-    created_at: DateTime<Utc>,
-}
-
-#[derive(Serialize, Deserialize, Validate, ToSchema)]
-pub struct DefPortionsDto {
-    #[validate(range(min = 0))]
-    portions: i64,
-}
-
-#[derive(Serialize, Deserialize, Validate, ToSchema)]
-struct PortionDateDto {
-    date: NaiveDate,
-
-    #[validate(range(min = 0))]
-    portions: i64,
-}
-
-#[derive(Deserialize, Validate, ToSchema)]
-#[validate(schema(function = "check_two_date"))]
-struct TwoDateDto {
-    begin: NaiveDate,
-    end: NaiveDate,
-}
 
 #[utoipa::path(get,
     tag = "member",
@@ -475,12 +428,4 @@ async fn portions_calendar(
     .await?;
 
     Ok(Json(res))
-}
-
-fn check_two_date(x: &TwoDateDto) -> Result<(), ValidationError> {
-    if x.begin > x.end {
-        Err(validator::ValidationError::new("invalid seq"))
-    } else {
-        Ok(())
-    }
 }

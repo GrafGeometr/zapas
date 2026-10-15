@@ -5,6 +5,7 @@ use crate::{
         auth::{TokenData, UserSession},
         pag::{Pag, PagArg, PagRes},
     },
+    dto::*,
     err::{AppErr, AppErrJson},
 };
 use axum::{
@@ -13,8 +14,8 @@ use axum::{
     middleware,
     routing::{delete, get, post},
 };
-use chrono::{DateTime, Duration, Utc};
-use utoipa::{IntoParams, OpenApi};
+use chrono::Duration;
+use utoipa::OpenApi;
 
 pub fn router(app: App) -> Router {
     Router::new()
@@ -48,32 +49,6 @@ pub fn router(app: App) -> Router {
     super::member::list_members,
 ))]
 pub struct RoomApi;
-
-#[derive(Clone, Serialize, ToSchema)]
-struct RoomDto {
-    id: Uuid,
-
-    #[schema(example = "502")]
-    display_name: String,
-
-    #[schema(example = "")]
-    bio: String,
-
-    review_interval: i64,
-    expired_notify: i64,
-
-    created_at: DateTime<Utc>,
-}
-
-#[derive(Clone, Copy, Deserialize, Validate, IntoParams)]
-struct InviteQuery {
-    /// None if for all
-    for_user: Option<Uuid>,
-
-    #[serde(default = "default_secs")]
-    #[validate(range(min = 1))]
-    secs: i64,
-}
 
 #[utoipa::path(post,
     tag = "room",
@@ -435,8 +410,4 @@ async fn gen_invite(
         .make_invite(room_id, q.for_user, Duration::seconds(q.secs))?;
 
     Ok(Json(token))
-}
-
-const fn default_secs() -> i64 {
-    16 * 60
 }

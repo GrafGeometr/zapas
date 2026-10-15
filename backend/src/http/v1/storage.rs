@@ -5,6 +5,7 @@ use crate::{
         auth::UserSession,
         pag::{Pag, PagArg, PagRes},
     },
+    dto::*,
     err::{AppErr, AppErrJson},
 };
 use axum::{
@@ -13,7 +14,6 @@ use axum::{
     middleware,
     routing::{delete, get, post},
 };
-use chrono::{DateTime, Utc};
 use utoipa::OpenApi;
 
 pub fn router(app: App) -> Router {
@@ -29,23 +29,6 @@ pub fn router(app: App) -> Router {
 #[derive(OpenApi)]
 #[openapi(paths(get_profile, delete_storage, upd_profile, set_timing))]
 pub struct StorageApi;
-
-#[derive(Clone, Serialize, ToSchema)]
-pub struct StorageDto {
-    id: Uuid,
-    room_id: Uuid,
-
-    #[schema(example = "Fridge")]
-    display_name: String,
-
-    #[schema(example = "Fridge")]
-    bio: String,
-
-    review_interval: Option<i64>,
-    expired_notify: Option<i64>,
-
-    created_at: DateTime<Utc>,
-}
 
 #[utoipa::path(get,
     tag = "storage",

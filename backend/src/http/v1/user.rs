@@ -5,8 +5,8 @@ use crate::{
         auth::UserSession,
         passwd::{check_passwd, gen_passwd_hash},
     },
+    dto::*,
     err::{AppErr, AppErrJson},
-    http::v1::UuidDto,
 };
 use axum::{
     Extension, Json, Router,
@@ -14,11 +14,9 @@ use axum::{
     middleware,
     routing::{delete, get, post},
 };
-use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
-use utoipa::{OpenApi, ToSchema};
+use utoipa::OpenApi;
 use uuid::Uuid;
-use validator::{Validate, ValidationError};
+use validator::Validate;
 
 pub fn router(app: App) -> Router {
     let without_middleware = Router::new().route("/register", post(register));
@@ -46,134 +44,6 @@ pub fn router(app: App) -> Router {
     upd_profile
 ))]
 pub struct UserApi;
-
-#[derive(Deserialize, Validate, ToSchema)]
-struct RegisterDto {
-    #[schema(example = "bob_ross")]
-    #[validate(length(min = 4, max = 63), custom(function = validate_username))]
-    username: String,
-
-    #[schema(example = "bob.ross@example.com")]
-    #[validate(email, length(max = 255))]
-    email: Option<String>,
-
-    #[schema(example = "Super_password!67")]
-    #[validate(length(min = 12, max = 127), custom(function = validate_passwd))]
-    passwd: String,
-
-    #[schema(example = "bob ross")]
-    #[validate(length(min = 1, max = 127))]
-    display_name: String,
-
-    #[schema(example = "")]
-    #[validate(length(max = 1024))]
-    bio: String,
-}
-
-#[derive(Serialize, ToSchema)]
-struct UserMe {
-    id: Uuid,
-
-    #[schema(example = "bob_ross")]
-    username: String,
-
-    #[schema(example = "bob.ross@example.com")]
-    email: Option<String>,
-
-    #[schema(example = false)]
-    verified_email: bool,
-
-    #[schema(example = "bob ross")]
-    display_name: String,
-
-    #[schema(example = "")]
-    bio: String,
-
-    created_at: DateTime<Utc>,
-}
-
-#[derive(Serialize, ToSchema)]
-struct UserOther {
-    id: Uuid,
-
-    #[schema(example = "omega")]
-    username: String,
-
-    #[schema(example = "omega bob")]
-    display_name: String,
-
-    #[schema(example = "omega plus 1 bob")]
-    bio: String,
-
-    created_at: DateTime<Utc>,
-}
-
-#[derive(Deserialize, Validate)]
-struct UserNamePath {
-    #[validate(length(min = 4, max = 63), custom(function = validate_username))]
-    username: String,
-}
-
-#[derive(Deserialize, Validate, ToSchema)]
-#[validate(schema(function = validate_change_passwd))]
-struct ChangePasswd {
-    #[schema(example = "Super_password!67")]
-    #[validate(length(min = 12, max = 127))]
-    old_passwd: String,
-
-    #[schema(example = "Super_puper_password!67")]
-    #[validate(length(min = 12, max = 127), custom(function = validate_passwd))]
-    passwd: String,
-}
-
-#[derive(Deserialize, Validate, ToSchema)]
-struct UpdUserProfileDto {
-    #[validate(length(min = 4, max = 63), custom(function = validate_username))]
-    username: Option<String>,
-
-    #[validate(length(min = 1, max = 127))]
-    display_name: Option<String>,
-
-    #[schema(example = "Bio")]
-    #[validate(length(max = 1024))]
-    bio: Option<String>,
-}
-
-fn validate_username(username: &str) -> Result<(), ValidationError> {
-    if username
-        .chars()
-        .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
-    {
-        Ok(())
-    } else {
-        Err(ValidationError::new("invalid username chars"))
-    }
-}
-
-fn validate_passwd(passwd: &str) -> Result<(), ValidationError> {
-    const SPECIAL_CHARS: &str = "!@#$%^&*()_-+=?/.,><;:";
-
-    if !passwd.chars().any(|c| c.is_ascii_alphabetic()) {
-        Err(ValidationError::new("not found alphabetic is passwd"))
-    } else if !passwd.chars().any(|c| c.is_ascii_digit()) {
-        Err(ValidationError::new("not found digit in passwd"))
-    } else if !passwd.chars().any(|c| c.is_ascii_lowercase()) {
-        Err(ValidationError::new("not found lowercase in passwd"))
-    } else if !passwd.chars().any(|c| c.is_ascii_uppercase()) {
-        Err(ValidationError::new("not found uppercase in passwd"))
-    } else if !passwd.chars().any(|c| SPECIAL_CHARS.contains(c)) {
-        Err(ValidationError::new("not found special chars in passwd"))
-    } else {
-        Ok(())
-    }
-}
-
-fn validate_change_passwd(cp: &ChangePasswd) -> Result<(), ValidationError> {
-    if cp.old_passwd == cp.passwd {
-        return Err(ValidationError::new("same passwords"));
-    }
-    Ok(())
-}
 
 #[utoipa::path(post,
     tag = "user",

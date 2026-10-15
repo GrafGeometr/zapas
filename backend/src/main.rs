@@ -1,6 +1,7 @@
 mod app;
 mod background;
 mod domain;
+mod dto;
 mod err;
 mod http;
 

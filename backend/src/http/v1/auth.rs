@@ -5,6 +5,7 @@ use crate::{
         pag::{Pag, PagArg, PagRes},
         passwd::check_passwd,
     },
+    dto::*,
     err::{AppErr, AppErrJson, ErrorLog},
 };
 use axum::{
@@ -15,11 +16,9 @@ use axum::{
     response::Response,
     routing::{get, post},
 };
-use chrono::{DateTime, Utc};
 use ipnetwork::IpNetwork;
-use serde::{Deserialize, Serialize};
 use std::net::IpAddr;
-use utoipa::{IntoParams, OpenApi, ToSchema};
+use utoipa::OpenApi;
 use uuid::Uuid;
 use validator::Validate;
 
@@ -51,31 +50,6 @@ pub fn router(app: App) -> Router {
 #[derive(OpenApi)]
 #[openapi(paths(login, logout, list_sessions, prolong, gen_access))]
 pub struct AuthApi;
-
-#[derive(Deserialize, Validate, ToSchema)]
-struct LoginDto {
-    #[schema(example = "bob_ross")]
-    #[validate(length(min = 4, max = 63))]
-    username: String,
-
-    #[schema(example = "Super_password!67")]
-    #[validate(length(min = 1, max = 127))]
-    passwd: String,
-}
-
-#[derive(Deserialize, IntoParams, ToSchema)]
-struct LogoutQuery {
-    #[serde(default)]
-    all: bool,
-}
-
-#[derive(Clone, Serialize, ToSchema)]
-struct SessionDto {
-    id: Uuid,
-    ip_addr: String,
-    last_active_at: DateTime<Utc>,
-    created_at: DateTime<Utc>,
-}
 
 #[utoipa::path(post,
     tag = "auth",

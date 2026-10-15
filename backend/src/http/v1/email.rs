@@ -1,12 +1,12 @@
 use crate::{
     app::App,
     domain::auth::UserSession,
+    dto::*,
     err::{AppErr, AppErrJson},
     http::v1::auth_middleware,
 };
 use axum::{Extension, Json, Router, extract::State, middleware, routing::post};
-use serde::Deserialize;
-use utoipa::{OpenApi, ToSchema};
+use utoipa::OpenApi;
 use validator::Validate;
 
 pub fn router(app: App) -> Router {
@@ -21,12 +21,6 @@ pub fn router(app: App) -> Router {
 #[derive(OpenApi)]
 #[openapi(paths(forgot, upd_email, verify))]
 pub struct EmailApi;
-
-#[derive(Deserialize, Validate, ToSchema)]
-struct EmailDto {
-    #[validate(email, length(max = 255))]
-    email: String,
-}
 
 #[utoipa::path(post,
     tag = "email",

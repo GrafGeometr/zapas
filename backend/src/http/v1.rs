@@ -45,35 +45,3 @@ pub struct V1Api;
 
 pub use auth::auth_middleware;
 use validator::Validate;
-
-#[derive(Serialize, Deserialize, ToSchema)]
-struct UuidDto {
-    id: Uuid,
-}
-
-#[derive(Serialize, Deserialize, Validate, ToSchema)]
-struct ProfileDto {
-    #[validate(length(min = 1, max = 127))]
-    display_name: String,
-
-    #[validate(length(max = 1024))]
-    bio: String,
-}
-
-#[derive(Deserialize, Validate, ToSchema)]
-struct UpdProfileDto {
-    #[validate(length(min = 1, max = 127))]
-    display_name: Option<String>,
-
-    #[validate(length(max = 1024))]
-    bio: Option<String>,
-}
-
-#[derive(Serialize, Deserialize, Validate, ToSchema)]
-struct Timing {
-    #[validate(range(min = 0))]
-    review_interval: Option<i64>,
-
-    #[validate(range(min = 0))]
-    expired_notify: Option<i64>,
-}
