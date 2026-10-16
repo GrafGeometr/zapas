@@ -251,6 +251,49 @@ pub struct SessionDto {
     pub created_at: DateTime<Utc>,
 }
 
+#[derive(Deserialize, Validate, ToSchema)]
+pub struct MakeTransactionDto {
+    pub member_to: Uuid,
+
+    #[validate(range(min = 1))]
+    pub money: i64,
+
+    #[validate(length(max = 1023))]
+    pub bio: String,
+}
+
+#[derive(Clone, Serialize, ToSchema)]
+pub struct TransactionDto {
+    pub id: Uuid,
+
+    pub room_id: Uuid,
+    pub member_from: Uuid,
+    pub member_to: Uuid,
+
+    pub money: i64,
+    pub bio: String,
+
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Clone, Copy, Deserialize, Validate, IntoParams)]
+pub struct TransactionQueryDto {
+    pub member_from: Option<Uuid>,
+    pub member_to: Option<Uuid>,
+
+    #[validate(nested)]
+    pub pag: crate::domain::pag::Pag,
+}
+
+#[derive(Deserialize, Validate, ToSchema)]
+pub struct UpdTransactionDto {
+    #[validate(range(min = 1))]
+    pub money: Option<i64>,
+
+    #[validate(length(max = 1023))]
+    pub bio: Option<String>,
+}
+
 fn validate_username(username: &str) -> Result<(), ValidationError> {
     if username
         .chars()

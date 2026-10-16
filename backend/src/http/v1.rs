@@ -4,12 +4,12 @@ mod member;
 mod room;
 mod sse;
 mod storage;
+mod transaction;
 mod user;
 
 use crate::app::App;
 use axum::Router;
-use serde::{Deserialize, Serialize};
-use utoipa::{OpenApi, ToSchema};
+use utoipa::OpenApi;
 use uuid::Uuid;
 
 pub fn router(app: App) -> Router {
@@ -20,6 +20,7 @@ pub fn router(app: App) -> Router {
     let email = Router::new().nest("/user", email::router(app.clone()));
     let storage = Router::new().nest("/storage", storage::router(app.clone()));
     let member = Router::new().nest("/member", member::router(app.clone()));
+    let tr = Router::new().nest("/transaction", transaction::router(app.clone()));
 
     auth.merge(user)
         .merge(room)
@@ -27,6 +28,7 @@ pub fn router(app: App) -> Router {
         .merge(email)
         .merge(storage)
         .merge(member)
+        .merge(tr)
 }
 
 #[derive(OpenApi)]
@@ -38,7 +40,8 @@ pub fn router(app: App) -> Router {
         (path = "/sse", api = sse::SseApi),
         (path = "/user", api = email::EmailApi),
         (path = "/storage", api = storage::StorageApi),
-        (path = "/member", api = member::MemberApi)
+        (path = "/member", api = member::MemberApi),
+        (path = "/transaction", api = transaction::TrApi),
     )
 )]
 pub struct V1Api;

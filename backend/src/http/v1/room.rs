@@ -30,6 +30,18 @@ pub fn router(app: App) -> Router {
         .route("/{room_id}/new_storage", post(super::storage::make))
         .route("/{room_id}/storages", get(super::storage::list_storages))
         .route("/{room_id}/members", get(super::member::list_members))
+        .route(
+            "/{room_id}/new_transaction",
+            post(super::transaction::new_transaction),
+        )
+        .route(
+            "/{room_id}/new_credit",
+            post(super::transaction::new_credit),
+        )
+        .route(
+            "/{room_id}/transactions",
+            get(super::transaction::all_transactions),
+        )
         .layer(middleware::from_fn_with_state(app.clone(), auth_middleware))
         .with_state(app)
 }
@@ -47,6 +59,9 @@ pub fn router(app: App) -> Router {
     super::storage::make,
     super::storage::list_storages,
     super::member::list_members,
+    super::transaction::new_transaction,
+    super::transaction::new_credit,
+    super::transaction::all_transactions
 ))]
 pub struct RoomApi;
 

@@ -22,6 +22,9 @@ pub enum AppErr {
     #[error("Validation error: {0}")]
     Validate(#[from] validator::ValidationErrors),
 
+    #[error("Validation error: {0}")]
+    CustomValidate(&'static str),
+
     #[error("Invalid or expired token")]
     InvalidToken,
 
@@ -94,7 +97,7 @@ impl AppErr {
             AppErr::NotImpl => StatusCode::NOT_IMPLEMENTED,
             AppErr::Internal => StatusCode::INTERNAL_SERVER_ERROR,
 
-            AppErr::Validate(_) => StatusCode::BAD_REQUEST,
+            AppErr::Validate(_) | AppErr::CustomValidate(_) => StatusCode::BAD_REQUEST,
 
             AppErr::InvalidToken => StatusCode::FORBIDDEN,
 
