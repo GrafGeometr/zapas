@@ -2,11 +2,14 @@ package com.example.zapas.ui.presentation.viewmodels.auth
 
 import app.cash.turbine.test
 import arrow.core.Either
-import com.example.zapas.domain.models.AppError
-import com.example.zapas.domain.usecase.auth.CheckAuthStatusUseCase
-import com.example.zapas.domain.usecase.auth.LoginUseCase
-import com.example.zapas.domain.usecase.auth.LogoutUseCase
-import com.example.zapas.domain.usecase.auth.RegisterUseCase
+import com.example.zapas.core.domain.model.AppError
+import com.example.zapas.features.auth.domain.usecase.CheckAuthStatusUseCase
+import com.example.zapas.features.auth.domain.usecase.LoginUseCase
+import com.example.zapas.features.auth.domain.usecase.LogoutUseCase
+import com.example.zapas.features.auth.domain.usecase.RegisterUseCase
+import com.example.zapas.features.auth.presentation.viewmodel.AuthViewModel
+import com.example.zapas.features.auth.presentation.viewmodel.LoginState
+import com.example.zapas.features.auth.presentation.viewmodel.RegisterState
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
