@@ -3,6 +3,7 @@ package com.example.zapas.features.rooms.domain.repository
 import androidx.paging.PagingData
 import arrow.core.Either
 import com.example.zapas.core.domain.model.AppError
+import com.example.zapas.core.utils.PagingPage
 import com.example.zapas.features.rooms.data.dto.response.MemberDto
 import com.example.zapas.features.rooms.domain.model.Member
 import com.example.zapas.features.rooms.domain.model.MembersPage
@@ -11,7 +12,7 @@ import com.example.zapas.features.rooms.domain.model.RoomsPage
 import kotlinx.coroutines.flow.Flow
 
 interface RoomsRepository {
-    suspend fun getRoomsList(page: Int?, size: Int): Either<AppError, RoomsPage>
+    suspend fun getRoomsList(page: Int?, size: Int): Either<AppError, PagingPage<Room>>
 
     fun getRoomsPaged(): Flow<PagingData<Room>>
 
@@ -27,7 +28,7 @@ interface RoomsRepository {
 
     suspend fun joinRoom(token: String): Either<AppError, String>
 
-    suspend fun getRoomMembers(roomId: String, page: Int? = 0, size: Int = 50): Either<AppError, MembersPage>
+    suspend fun getRoomMembers(roomId: String, page: Int? = 0, size: Int = 50): Either<AppError, PagingPage<Member>>
 
     fun getMembersPaged(roomId: String): Flow<PagingData<Member>>
 

@@ -1,7 +1,8 @@
 package com.example.zapas.features.rooms.data.dto.response
 
 import com.example.zapas.core.network.dto.ResponseDto
-import com.example.zapas.features.rooms.domain.model.MembersPage
+import com.example.zapas.core.utils.PagingPage
+import com.example.zapas.features.rooms.domain.model.Member
 import com.squareup.moshi.Json
 import com.squareup.moshi.JsonClass
 
@@ -11,9 +12,9 @@ data class MembersDto(
     @Json(name = "next_page") val nextPage: Int?,
     @Json(name = "prev_page") val prevPage: Int?,
     @Json(name = "pag") val pag: Pag
-) : ResponseDto<MembersPage> {
-    override fun toDomain() = MembersPage(
-        members = data.map { it.toDomain() }, prevPage = prevPage, nextPage = nextPage
+) : ResponseDto<PagingPage<Member>> {
+    override fun toDomain() = PagingPage(
+        data = data.map { it.toDomain() }, prevPage = prevPage, nextPage = nextPage
     )
 }
 

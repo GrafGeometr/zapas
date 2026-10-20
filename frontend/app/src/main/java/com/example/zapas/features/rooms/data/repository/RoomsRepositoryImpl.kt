@@ -7,6 +7,7 @@ import arrow.core.Either
 import com.example.zapas.core.network.NetworkErrorMapper
 import com.example.zapas.features.rooms.data.repository.paging.RoomsPagingSource
 import com.example.zapas.core.domain.model.AppError
+import com.example.zapas.core.utils.PagingPage
 import com.example.zapas.features.rooms.domain.model.Room
 import com.example.zapas.features.rooms.domain.repository.RoomsRepository
 import com.example.zapas.features.rooms.data.api.RoomsApiService
@@ -15,7 +16,6 @@ import com.example.zapas.features.rooms.data.dto.request.UpdateRoomDto
 import com.example.zapas.features.rooms.data.dto.request.UpdateRoomTimingsDto
 import com.example.zapas.features.rooms.data.repository.paging.MembersPagingSource
 import com.example.zapas.features.rooms.domain.model.Member
-import com.example.zapas.features.rooms.domain.model.MembersPage
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 
@@ -45,7 +45,7 @@ class RoomsRepositoryImpl @Inject constructor(
         roomId: String,
         page: Int?,
         size: Int
-    ): Either<AppError, MembersPage> =
+    ): Either<AppError, PagingPage<Member>> =
         networkErrorMapper.safeApiCallMapped { roomApi.members(roomId, page, size) }
 
     override fun getMembersPaged(roomId: String): Flow<PagingData<Member>> = Pager(
