@@ -4,6 +4,7 @@ mod domain;
 mod dto;
 mod err;
 mod http;
+mod repo;
 
 use crate::{app::App, err::GlobalErr, http::server};
 use tracing::{info, warn};
