@@ -10,9 +10,13 @@ use tracing::info;
 #[derive(Clone)]
 pub struct App {
     pub pool: PgPool,
+
     pub jwt: JwtService,
     pub invite: InviteService,
+
     pub sse: SseService,
+
+    pub user_repo: crate::repo::pg::UserRepoPg,
 }
 
 impl App {
@@ -22,11 +26,16 @@ impl App {
         auth_secret: &str,
         invite_secret: &str,
     ) -> Result<Self, GlobalErr> {
+        let pool = sqlx::Pool::connect(db_url).await?;
+
         let res = Self {
-            pool: sqlx::Pool::connect(db_url).await?,
+            pool: pool.clone(),
+
             jwt: JwtService::new(auth_secret),
             invite: InviteService::new(invite_secret),
             sse: SseService::new(),
+
+            user_repo: crate::repo::pg::UserRepoPg::new(pool.clone()),
         };
 
         res.migration().await?;

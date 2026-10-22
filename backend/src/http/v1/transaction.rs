@@ -10,6 +10,7 @@ use axum::{
     Extension, Json,
     extract::{Path, State},
 };
+use validator::Validate;
 
 pub fn router(app: App) -> Router {
     Router::new()

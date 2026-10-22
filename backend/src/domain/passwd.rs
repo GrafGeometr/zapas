@@ -59,8 +59,9 @@ fn gen_random_char_types() -> [CharType; GEN_PASSWD_LEN] {
 
     let mut types: [CharType; GEN_PASSWD_LEN] = [CharType::Digit; GEN_PASSWD_LEN];
     types[..CHAR_TYPES.len()].copy_from_slice(&CHAR_TYPES);
-    for i in CHAR_TYPES.len()..GEN_PASSWD_LEN {
-        types[i] = CHAR_TYPES[rng.random_range(..CHAR_TYPES.len())];
+
+    for tp in types[CHAR_TYPES.len()..GEN_PASSWD_LEN].iter_mut() {
+        *tp = CHAR_TYPES[rng.random_range(..CHAR_TYPES.len())];
     }
     types.shuffle(&mut rng);
     types

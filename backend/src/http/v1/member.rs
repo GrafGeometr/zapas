@@ -13,6 +13,7 @@ use axum::{
     middleware,
     routing::{delete, get, post},
 };
+use validator::Validate;
 
 pub fn router(app: App) -> Router {
     Router::new()

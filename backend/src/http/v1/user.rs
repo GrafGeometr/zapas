@@ -1,21 +1,19 @@
-use super::auth_middleware;
+use super::*;
 use crate::{
-    app::App,
-    domain::{
-        auth::UserSession,
-        passwd::{check_passwd, gen_passwd_hash},
-    },
-    dto::*,
+    domain::{auth::UserSession, passwd::*, user::*},
+    dto::UuidDto,
     err::{AppErr, AppErrJson},
+    repo::UserRepo,
 };
 use axum::{
-    Extension, Json, Router,
+    Extension, Json,
     extract::{Path, State},
     middleware,
     routing::{delete, get, post},
 };
-use utoipa::OpenApi;
-use uuid::Uuid;
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 use validator::Validate;
 
 pub fn router(app: App) -> Router {
@@ -49,7 +47,7 @@ pub struct UserApi;
     tag = "user",
     path = "/register",
     description = "Register new user",
-    request_body = RegisterDto,
+    request_body = RegisterReq,
     responses(
         (status = 200, body = UuidDto),
         (status = 500, body = AppErrJson, description = "Internal server error"),
@@ -59,49 +57,13 @@ pub struct UserApi;
 )]
 async fn register(
     State(app): State<App>,
-    Json(reg): Json<RegisterDto>,
+    Json(reg): Json<RegisterReq>,
 ) -> Result<Json<UuidDto>, AppErr> {
     reg.validate()?;
 
-    let id = Uuid::now_v7();
-    let passwd_hash = gen_passwd_hash(&reg.passwd)?;
-
-    sqlx::query!(
-        r#"
-        insert into users (
-            id,
-            username,
-            email,
-            display_name,
-            bio,
-            passwd_hash
-        ) values (
-            $1, $2, $3, $4, $5, $6
-        )"#,
-        id,
-        reg.username,
-        reg.email,
-        reg.display_name,
-        reg.bio,
-        passwd_hash
-    )
-    .execute(&app.pool)
-    .await
-    .map_err(|err| {
-        if let Some(e) = err.as_database_error() {
-            if e.message().contains("users_username_unique") {
-                AppErr::AlreadyExists("username")
-            } else if e.message().contains("users_email_unique") {
-                AppErr::AlreadyExists("email")
-            } else {
-                err.into()
-            }
-        } else {
-            err.into()
-        }
-    })?;
-
-    Ok(Json(UuidDto { id }))
+    Ok(Json(UuidDto {
+        id: app.user_repo.new_user(reg.try_into()?).await?.id,
+    }))
 }
 
 #[utoipa::path(delete,
@@ -128,7 +90,7 @@ async fn delete_user(
     path = "/me",
     description = "All data about yourself",
     responses(
-        (status = 200, body = UserMe),
+        (status = 200, body = UserMeResp),
         (status = 500, body = AppErrJson, description = "Internal server error"),
         (status = 401, body = AppErrJson, description = "Token is missing or not verified (maybe deleted or ip changed)"),
         (status = 403, body = AppErrJson, description = "Invalid or expired token"),
@@ -141,26 +103,14 @@ async fn delete_user(
 async fn me(
     State(app): State<App>,
     Extension(user): Extension<UserSession>,
-) -> Result<Json<UserMe>, AppErr> {
-    let res = sqlx::query_as!(
-        UserMe,
-        r#"
-        select
-            id,
-            username,
-            email,
-            verified_email,
-            display_name,
-            bio,
-            created_at
-        from users where id = $1"#,
-        user.user
-    )
-    .fetch_optional(&app.pool)
-    .await?
-    .ok_or(AppErr::NotFound)?;
-
-    Ok(Json(res))
+) -> Result<Json<UserMeResp>, AppErr> {
+    Ok(Json(
+        app.user_repo
+            .get_by_id(user.user)
+            .await?
+            .ok_or(AppErr::NotFound)?
+            .into(),
+    ))
 }
 
 #[utoipa::path(get,
@@ -168,7 +118,7 @@ async fn me(
     path = "/by_id/{id}",
     description = "Data about other user",
     responses(
-        (status = 200, body = UserOther),
+        (status = 200, body = UserOtherResp),
         (status = 500, body = AppErrJson, description = "Internal server error"),
         (status = 401, body = AppErrJson, description = "Token is missing or not verified (maybe deleted or ip changed)"),
         (status = 403, body = AppErrJson, description = "Invalid or expired token"),
@@ -182,24 +132,14 @@ async fn other_user_by_id(
     State(app): State<App>,
     Extension(_user): Extension<UserSession>,
     Path(UuidDto { id }): Path<UuidDto>,
-) -> Result<Json<UserOther>, AppErr> {
-    let res = sqlx::query_as!(
-        UserOther,
-        r#"
-        select
-            id,
-            username,
-            display_name,
-            bio,
-            created_at
-        from users where id = $1"#,
-        id
-    )
-    .fetch_optional(&app.pool)
-    .await?
-    .ok_or(AppErr::NotFound)?;
-
-    Ok(Json(res))
+) -> Result<Json<UserOtherResp>, AppErr> {
+    Ok(Json(
+        app.user_repo
+            .get_by_id(id)
+            .await?
+            .ok_or(AppErr::NotFound)?
+            .into(),
+    ))
 }
 
 #[utoipa::path(get,
@@ -207,7 +147,7 @@ async fn other_user_by_id(
     path = "/by_username/{username}",
     description = "Data about other user",
     responses(
-        (status = 200, body = UserOther),
+        (status = 200, body = UserOtherResp),
         (status = 500, body = AppErrJson, description = "Internal server error"),
         (status = 400, body = AppErrJson, description = "Invalid any data format (validation error)"),
         (status = 401, body = AppErrJson, description = "Token is missing or not verified (maybe deleted or ip changed)"),
@@ -222,35 +162,25 @@ async fn other_user_by_username(
     State(app): State<App>,
     Extension(_user): Extension<UserSession>,
     Path(username): Path<String>,
-) -> Result<Json<UserOther>, AppErr> {
-    let path = UserNamePath { username };
+) -> Result<Json<UserOtherResp>, AppErr> {
+    let path = UserNameReq { username };
     path.validate()?;
     let username = &path.username;
 
-    let res = sqlx::query_as!(
-        UserOther,
-        r#"
-        select
-            id,
-            username,
-            display_name,
-            bio,
-            created_at
-        from users where username = $1"#,
-        username
-    )
-    .fetch_optional(&app.pool)
-    .await?
-    .ok_or(AppErr::NotFound)?;
-
-    Ok(Json(res))
+    Ok(Json(
+        app.user_repo
+            .get_by_username(username)
+            .await?
+            .ok_or(AppErr::NotFound)?
+            .into(),
+    ))
 }
 
 #[utoipa::path(post,
     tag = "user",
     path = "/me/passwd",
     description = "Change password and logout all",
-    request_body = ChangePasswd,
+    request_body = ChangePasswdReq,
     responses(
         (status = 200),
         (status = 500, body = AppErrJson, description = "Internal server error"),
@@ -266,44 +196,14 @@ async fn other_user_by_username(
 async fn change_passwd(
     State(app): State<App>,
     Extension(user): Extension<UserSession>,
-    Json(cp): Json<ChangePasswd>,
+    Json(cp): Json<ChangePasswdReq>,
 ) -> Result<(), AppErr> {
     cp.validate()?;
     let new_hash = gen_passwd_hash(&cp.passwd)?;
 
-    let mut tx = app.pool.begin().await?;
-
-    let res = sqlx::query!(
-        r#"
-        select
-            passwd_hash
-        from users
-        where id = $1
-        for update"#,
-        user.user
-    )
-    .fetch_optional(&mut *tx)
-    .await?
-    .ok_or(AppErr::NotFound)?;
-    check_passwd(&res.passwd_hash, &cp.old_passwd)?;
-
-    sqlx::query!(
-        r#"
-        update users set
-            passwd_hash = $2
-        where id = $1"#,
-        user.user,
-        new_hash,
-    )
-    .execute(&mut *tx)
-    .await?;
-
-    sqlx::query!("delete from sessions where user_id = $1", user.user)
-        .execute(&mut *tx)
+    app.user_repo
+        .upd_passwd(user.user, &cp.old_passwd, &new_hash)
         .await?;
-
-    tx.commit().await?;
-
     Ok(())
 }
 
@@ -311,9 +211,9 @@ async fn change_passwd(
     tag = "user",
     path = "/me/profile",
     description = "Change profile (username, display_name, bio)",
-    request_body = UpdUserProfileDto,
+    request_body = UpdUserProfileReq,
     responses(
-        (status = 200, body = UserMe),
+        (status = 200, body = UserMeResp),
         (status = 500, body = AppErrJson, description = "Internal server error"),
         (status = 400, body = AppErrJson, description = "Invalid any data format (validation error)"),
         (status = 401, body = AppErrJson, description = "Token is missing or not verified (maybe deleted or ip changed)"),
@@ -328,47 +228,159 @@ async fn change_passwd(
 async fn upd_profile(
     State(app): State<App>,
     Extension(user): Extension<UserSession>,
-    Json(upd): Json<UpdUserProfileDto>,
-) -> Result<Json<UserMe>, AppErr> {
+    Json(upd): Json<UpdUserProfileReq>,
+) -> Result<Json<UserMeResp>, AppErr> {
     upd.validate()?;
 
-    let res = sqlx::query_as!(
-        UserMe,
-        r#"
-        update users set
-            username = coalesce($2, username),
-            display_name = coalesce($3, display_name),
-            bio = coalesce($4, bio)
-        where id = $1
-        returning
-            id,
-            username,
-            email,
-            verified_email,
-            display_name,
-            bio,
-            created_at"#,
-        user.user,
-        upd.username,
-        upd.display_name,
-        upd.bio
-    )
-    .fetch_optional(&app.pool)
-    .await
-    .map_err(|err| {
-        if let Some(e) = err.as_database_error() {
-            if e.message().contains("users_username_unique") {
-                AppErr::AlreadyExists("username")
-            } else if e.message().contains("users_email_unique") {
-                AppErr::AlreadyExists("email")
-            } else {
-                err.into()
-            }
-        } else {
-            err.into()
-        }
-    })?
-    .ok_or(AppErr::NotFound)?;
+    Ok(Json(app.user_repo.upd(user.user, upd.into()).await?.into()))
+}
 
-    Ok(Json(res))
+#[derive(Clone, Deserialize, Validate, ToSchema)]
+struct RegisterReq {
+    #[schema(example = "bob_ross")]
+    #[validate(length(min = 4, max = 63), custom(function = validate_username))]
+    pub username: String,
+
+    #[schema(example = "bob.ross@example.com")]
+    #[validate(email, length(max = 255))]
+    pub email: Option<String>,
+
+    #[schema(example = "Super_password!67")]
+    #[validate(length(min = 12, max = 127), custom(function = validate_passwd))]
+    pub passwd: String,
+
+    #[schema(example = "bob ross")]
+    #[validate(length(min = 1, max = 127))]
+    pub display_name: String,
+
+    #[schema(example = "")]
+    #[validate(length(max = 1024))]
+    pub bio: String,
+}
+
+#[derive(Serialize, ToSchema)]
+struct UserMeResp {
+    pub id: Uuid,
+
+    #[schema(example = "bob_ross")]
+    pub username: String,
+
+    #[schema(example = "bob.ross@example.com")]
+    pub email: Option<String>,
+
+    #[schema(example = false)]
+    pub verified_email: bool,
+
+    #[schema(example = "bob ross")]
+    pub display_name: String,
+
+    #[schema(example = "")]
+    pub bio: String,
+
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Serialize, ToSchema)]
+struct UserOtherResp {
+    pub id: Uuid,
+
+    #[schema(example = "omega")]
+    pub username: String,
+
+    #[schema(example = "omega bob")]
+    pub display_name: String,
+
+    #[schema(example = "omega plus 1 bob")]
+    pub bio: String,
+
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Deserialize, Validate)]
+pub struct UserNameReq {
+    #[validate(length(min = 4, max = 63), custom(function = validate_username))]
+    pub username: String,
+}
+
+#[derive(Deserialize, Validate, ToSchema)]
+#[validate(schema(function = validate_change_passwd))]
+pub struct ChangePasswdReq {
+    #[schema(example = "Super_password!67")]
+    #[validate(length(min = 12, max = 127))]
+    pub old_passwd: String,
+
+    #[schema(example = "Super_puper_password!67")]
+    #[validate(length(min = 12, max = 127), custom(function = validate_passwd))]
+    pub passwd: String,
+}
+
+#[derive(Deserialize, Validate, ToSchema)]
+pub struct UpdUserProfileReq {
+    #[validate(length(min = 4, max = 63), custom(function = validate_username))]
+    pub username: Option<String>,
+
+    #[validate(length(min = 1, max = 127))]
+    pub display_name: Option<String>,
+
+    #[schema(example = "Bio")]
+    #[validate(length(max = 1024))]
+    pub bio: Option<String>,
+}
+
+impl TryFrom<RegisterReq> for MakeUser {
+    type Error = AppErr;
+
+    fn try_from(x: RegisterReq) -> Result<Self, Self::Error> {
+        Ok(MakeUser {
+            id: Uuid::now_v7(),
+            username: x.username,
+            email: x.email,
+            passwd_hash: gen_passwd_hash(&x.passwd)?,
+            display_name: x.display_name,
+            bio: x.bio,
+        })
+    }
+}
+
+impl From<User> for UserMeResp {
+    fn from(x: User) -> Self {
+        Self {
+            id: x.id,
+            username: x.username,
+            email: x.email,
+            verified_email: x.verified_email,
+            display_name: x.display_name,
+            bio: x.bio,
+            created_at: x.created_at,
+        }
+    }
+}
+
+impl From<User> for UserOtherResp {
+    fn from(x: User) -> Self {
+        Self {
+            id: x.id,
+            username: x.username,
+            display_name: x.display_name,
+            bio: x.bio,
+            created_at: x.created_at,
+        }
+    }
+}
+
+impl From<UpdUserProfileReq> for UpdUser {
+    fn from(x: UpdUserProfileReq) -> Self {
+        UpdUser {
+            username: x.username,
+            display_name: x.display_name,
+            bio: x.bio,
+        }
+    }
+}
+
+fn validate_change_passwd(cp: &ChangePasswdReq) -> Result<(), ValidationError> {
+    if cp.old_passwd == cp.passwd {
+        return Err(ValidationError::new("same passwords"));
+    }
+    Ok(())
 }

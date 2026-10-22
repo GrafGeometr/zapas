@@ -56,10 +56,10 @@ impl SseService {
     pub fn send(&self, user: Uuid, msg: EventMsg) {
         let map = self.channels.lock().expect("Map lock");
 
-        if let Some(tx) = map.get(&user) {
-            if let Err(err) = tx.send(msg) {
-                error!("Sse service send error: {}", err);
-            }
+        if let Some(tx) = map.get(&user)
+            && let Err(err) = tx.send(msg)
+        {
+            error!("Sse service send error: {}", err);
         }
     }
 
@@ -89,10 +89,10 @@ impl SseService {
     fn unsubscribe(&self, user: Uuid) {
         let mut map = self.channels.lock().expect("Map lock");
 
-        if let Some(tx) = map.get(&user) {
-            if tx.receiver_count() == 0 {
-                map.remove(&user);
-            }
+        if let Some(tx) = map.get(&user)
+            && tx.receiver_count() == 0
+        {
+            map.remove(&user);
         }
     }
 }

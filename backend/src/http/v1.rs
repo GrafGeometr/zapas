@@ -11,6 +11,7 @@ use crate::app::App;
 use axum::Router;
 use utoipa::OpenApi;
 use uuid::Uuid;
+use validator::ValidationError;
 
 pub fn router(app: App) -> Router {
     let auth = Router::new().nest("/user", auth::router(app.clone()));
@@ -47,4 +48,32 @@ pub fn router(app: App) -> Router {
 pub struct V1Api;
 
 pub use auth::auth_middleware;
-use validator::Validate;
+
+pub fn validate_username(username: &str) -> Result<(), ValidationError> {
+    if username
+        .chars()
+        .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
+    {
+        Ok(())
+    } else {
+        Err(ValidationError::new("invalid username chars"))
+    }
+}
+
+pub fn validate_passwd(passwd: &str) -> Result<(), ValidationError> {
+    const SPECIAL_CHARS: &str = "!@#$%^&*()_-+=?/.,><;:";
+
+    if !passwd.chars().any(|c| c.is_ascii_alphabetic()) {
+        Err(ValidationError::new("not found alphabetic is passwd"))
+    } else if !passwd.chars().any(|c| c.is_ascii_digit()) {
+        Err(ValidationError::new("not found digit in passwd"))
+    } else if !passwd.chars().any(|c| c.is_ascii_lowercase()) {
+        Err(ValidationError::new("not found lowercase in passwd"))
+    } else if !passwd.chars().any(|c| c.is_ascii_uppercase()) {
+        Err(ValidationError::new("not found uppercase in passwd"))
+    } else if !passwd.chars().any(|c| SPECIAL_CHARS.contains(c)) {
+        Err(ValidationError::new("not found special chars in passwd"))
+    } else {
+        Ok(())
+    }
+}

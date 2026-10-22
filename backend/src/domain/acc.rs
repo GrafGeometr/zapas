@@ -40,7 +40,7 @@
 //! Тогда получим `food_spent` - кто сколько наел еды. Это произведение числа
 //! порций учатника в этот день на стоимость порции в этот день.
 //! Каждый день стоимость порции может быть разной.
-use chrono::{DateTime, Duration, NaiveDate, Utc};
+use chrono::{Duration, NaiveDate};
 use std::{
     cmp::min,
     collections::{BTreeSet, HashMap},
@@ -144,7 +144,7 @@ pub fn accounting(members: &[MemberStat]) -> Vec<NeedTransaction> {
     while s.len() >= 2 {
         let mut a = s.pop_first().unwrap();
         let mut b = s.pop_last().unwrap();
-        let money = a.from_to_money(b);
+        let money = a.send_money(b);
 
         res.push(NeedTransaction {
             member_from: a.id,
@@ -260,7 +260,7 @@ pub fn calc_stats(
         }
     }
 
-    res.into_iter().map(|(_, x)| x).collect()
+    res.into_values().collect()
 }
 
 impl MemberStat {
@@ -307,7 +307,7 @@ impl Delta {
     /// текущего пользователя к другому.
     ///
     /// Увеличивает вклад текущего и уменьшает вклад другого.
-    fn from_to_money(&self, to: Delta) -> i64 {
+    fn send_money(&self, to: Delta) -> i64 {
         min(-self.val, to.val).min(0)
     }
 }

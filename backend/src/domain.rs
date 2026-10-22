@@ -5,3 +5,4 @@ pub mod invite;
 pub mod pag;
 pub mod passwd;
 pub mod sse;
+pub mod user;

@@ -15,6 +15,7 @@ use axum::{
     routing::{delete, get, post},
 };
 use utoipa::OpenApi;
+use validator::Validate;
 
 pub fn router(app: App) -> Router {
     Router::new()

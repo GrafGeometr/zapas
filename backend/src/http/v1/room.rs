@@ -16,6 +16,7 @@ use axum::{
 };
 use chrono::Duration;
 use utoipa::OpenApi;
+use validator::Validate;
 
 pub fn router(app: App) -> Router {
     Router::new()
