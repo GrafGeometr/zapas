@@ -3,7 +3,7 @@ use crate::{
     domain::{auth::UserSession, passwd::*, user::*},
     dto::UuidDto,
     err::{AppErr, AppErrJson},
-    repo::UserRepo,
+    repo::user::UserRepo,
 };
 use axum::{
     Extension, Json,

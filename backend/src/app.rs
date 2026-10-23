@@ -16,7 +16,8 @@ pub struct App {
 
     pub sse: SseService,
 
-    pub user_repo: crate::repo::pg::UserRepoPg,
+    pub user_repo: crate::repo::user::pg::UserRepoPg,
+    pub session_repo: crate::repo::session::pg::SessionRepoPg,
 }
 
 impl App {
@@ -35,7 +36,8 @@ impl App {
             invite: InviteService::new(invite_secret),
             sse: SseService::new(),
 
-            user_repo: crate::repo::pg::UserRepoPg::new(pool.clone()),
+            user_repo: crate::repo::user::pg::UserRepoPg::new(pool.clone()),
+            session_repo: crate::repo::session::pg::SessionRepoPg::new(pool.clone()),
         };
 
         res.migration().await?;

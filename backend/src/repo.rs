@@ -1,5 +1,4 @@
 //! Модуль с описанием работы со внешними
 //! источниками информации (БД, email и тд).
-mod user;
-
-pub use user::*;
+pub mod session;
+pub mod user;

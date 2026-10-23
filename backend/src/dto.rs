@@ -129,37 +129,6 @@ pub struct TwoDateDto {
 }
 
 #[derive(Deserialize, Validate, ToSchema)]
-pub struct EmailDto {
-    #[validate(email, length(max = 255))]
-    pub email: String,
-}
-
-#[derive(Deserialize, Validate, ToSchema)]
-pub struct LoginDto {
-    #[schema(example = "bob_ross")]
-    #[validate(length(min = 4, max = 63))]
-    pub username: String,
-
-    #[schema(example = "Super_password!67")]
-    #[validate(length(min = 1, max = 127))]
-    pub passwd: String,
-}
-
-#[derive(Deserialize, IntoParams, ToSchema)]
-pub struct LogoutQuery {
-    #[serde(default)]
-    pub all: bool,
-}
-
-#[derive(Clone, Serialize, ToSchema)]
-pub struct SessionDto {
-    pub id: Uuid,
-    pub ip_addr: String,
-    pub last_active_at: DateTime<Utc>,
-    pub created_at: DateTime<Utc>,
-}
-
-#[derive(Deserialize, Validate, ToSchema)]
 pub struct MakeTransactionDto {
     pub member_to: Uuid,
 

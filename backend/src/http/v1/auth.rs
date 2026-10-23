@@ -1,24 +1,24 @@
+use super::*;
 use crate::{
-    app::App,
     domain::{
         auth::{AuthToken, Session, TokenData, UserSession},
         pag::{Pag, PagArg, PagRes},
-        passwd::check_passwd,
     },
-    dto::*,
     err::{AppErr, AppErrJson, ErrorLog},
+    repo::session::SessionRepo,
 };
 use axum::{
-    Extension, Json, Router,
+    Extension, Json,
     body::Body,
     extract::{Query, Request, State},
     middleware::{self, Next},
     response::Response,
     routing::{get, post},
 };
-use ipnetwork::IpNetwork;
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 use std::net::IpAddr;
-use utoipa::OpenApi;
+use utoipa::{IntoParams, ToSchema};
 use uuid::Uuid;
 use validator::Validate;
 
@@ -55,7 +55,7 @@ pub struct AuthApi;
     tag = "auth",
     path = "/login",
     description = "Creating session and token using username and password",
-    request_body = LoginDto,
+    request_body = LoginReq,
     responses(
         (status = 200, body = TokenData),
         (status = 500, body = AppErrJson, description = "Internal server error"),
@@ -66,55 +66,16 @@ pub struct AuthApi;
 async fn login(
     State(app): State<App>,
     Extension(ip): Extension<IpAddr>,
-    Json(login): Json<LoginDto>,
+    Json(login): Json<LoginReq>,
 ) -> Result<Json<TokenData>, AppErr> {
     login.validate()?;
 
-    let res = sqlx::query!(
-        r#"
-        select
-            id,
-            passwd_hash
-        from users
-        where username = $1"#,
-        login.username
-    )
-    .fetch_optional(&app.pool)
-    .await?
-    .ok_or(AppErr::BadUsername)?;
-    check_passwd(&res.passwd_hash, &login.passwd)?;
+    let token = app
+        .session_repo
+        .new_session(&login.username, &login.passwd, ip)
+        .await?;
 
-    let (session, token) = Session::new(res.id, ip);
     let token = app.jwt.encode(token)?;
-
-    let ip = IpNetwork::new(session.ip, 32).expect("Invalid ip");
-    sqlx::query!(
-        r#"
-        insert into sessions (
-            id,
-            user_id,
-            ver,
-            ip_addr,
-            last_active_at,
-            created_at
-        ) values (
-            $1,
-            $2,
-            $3,
-            $4,
-            $5,
-            $6
-        )"#,
-        session.id,
-        session.user,
-        session.ver,
-        ip,
-        session.last_active_at,
-        session.created_at
-    )
-    .execute(&app.pool)
-    .await?;
-
     Ok(Json(token))
 }
 
@@ -130,6 +91,7 @@ async fn login(
         (status = 500, body = AppErrJson, description = "Internal server error"),
         (status = 401, body = AppErrJson, description = "Token is missing or not verified (maybe deleted or ip changed)"),
         (status = 403, body = AppErrJson, description = "Invalid or expired token"),
+        (status = 404, body = AppErrJson, description = "User or session not found"),
     ),
     security(
         ("jwt" = [])
@@ -141,15 +103,10 @@ async fn logout(
     Query(LogoutQuery { all }): Query<LogoutQuery>,
 ) -> Result<(), AppErr> {
     if all {
-        sqlx::query!("delete from sessions where user_id = $1", user.user)
-            .execute(&app.pool)
-            .await?;
+        app.session_repo.delete_all_sessions(user.user).await?;
     } else {
-        sqlx::query!("delete from sessions where id = $1", user.session)
-            .execute(&app.pool)
-            .await?;
+        app.session_repo.delete_session(user.session).await?;
     }
-
     Ok(())
 }
 
@@ -161,7 +118,7 @@ async fn logout(
         Pag
     ),
     responses(
-        (status = 200, body = PagRes<SessionDto>),
+        (status = 200, body = PagRes<SessionResp>),
         (status = 500, body = AppErrJson, description = "Internal server error"),
         (status = 400, body = AppErrJson, description = "Invalid any data format (validation error)"),
         (status = 401, body = AppErrJson, description = "Token is missing or not verified (maybe deleted or ip changed)"),
@@ -175,35 +132,17 @@ async fn list_sessions(
     State(app): State<App>,
     Extension(user): Extension<UserSession>,
     Query(pag): Query<Pag>,
-) -> Result<Json<PagRes<SessionDto>>, AppErr> {
+) -> Result<Json<PagRes<SessionResp>>, AppErr> {
     pag.validate()?;
 
     let f = async |pag: PagArg| -> Result<_, AppErr> {
-        let res: Vec<_> = sqlx::query!(
-            r#"
-            select
-                id,
-                ip_addr,
-                last_active_at,
-                created_at
-            from sessions
-            where user_id = $1
-            order by last_active_at desc
-            offset $2 limit $3"#,
-            user.user,
-            pag.offset,
-            pag.limit
-        )
-        .fetch_all(&app.pool)
-        .await?
-        .into_iter()
-        .map(|x| SessionDto {
-            id: x.id,
-            ip_addr: x.ip_addr.ip().to_string(),
-            last_active_at: x.last_active_at,
-            created_at: x.created_at,
-        })
-        .collect();
+        let res = app
+            .session_repo
+            .list_sessions(user.user, pag)
+            .await?
+            .into_iter()
+            .map(|x| x.into())
+            .collect();
 
         Ok(res)
     };
@@ -238,10 +177,14 @@ async fn prolong(
         AuthToken::Refresh(x) => x,
     };
 
-    let mut session = load_session(&app, refresh.session()).await?;
+    let mut session = app
+        .session_repo
+        .get_by_id(refresh.session())
+        .await?
+        .ok_or(AppErr::Unauthorized)?;
+
     let token = session.prolong(refresh, ip)?;
     let token = app.jwt.encode(token)?;
-    upd_session(&app, session).await?;
 
     Ok(Json(token))
 }
@@ -273,11 +216,16 @@ async fn gen_access(
         AuthToken::Refresh(x) => x,
     };
 
-    let mut session = load_session(&app, refresh.session()).await?;
+    let mut session = app
+        .session_repo
+        .get_by_id(refresh.session())
+        .await?
+        .ok_or(AppErr::Unauthorized)?;
+
     let token = session.make_access(refresh, ip)?;
     let token = app.jwt.encode(token)?;
-    upd_session(&app, session).await?;
 
+    app.session_repo.upd(session).await?;
     Ok(Json(token))
 }
 
@@ -308,9 +256,15 @@ pub async fn auth_middleware(
         crate::domain::auth::AuthToken::Access(access) => Session::validate_access(access, ip)?,
 
         crate::domain::auth::AuthToken::Refresh(refresh) => {
-            let mut session = load_session(&app, refresh.session()).await?;
+            let mut session = app
+                .session_repo
+                .get_by_id(refresh.session())
+                .await?
+                .ok_or(AppErr::Unauthorized)?;
+
             let res = session.validate_refresh(refresh, ip)?;
-            upd_session(&app, session).await?;
+
+            app.session_repo.upd(session).await?;
             res
         }
     };
@@ -360,53 +314,38 @@ async fn ip_middleware(mut req: Request<Body>, next: Next) -> Result<Response, A
     Ok(next.run(req).await)
 }
 
-/// Загрузка сессии для domain логики по id.
-async fn load_session(app: &App, id: Uuid) -> Result<Session, AppErr> {
-    let x = sqlx::query!(
-        r#"
-        select
-            id,
-            user_id as user,
-            ver,
-            ip_addr as ip,
-            last_active_at,
-            created_at
-        from sessions
-        where id = $1"#,
-        id,
-    )
-    .fetch_optional(&app.pool)
-    .await?
-    .ok_or(AppErr::Unauthorized)?;
+#[derive(Deserialize, Validate, ToSchema)]
+struct LoginReq {
+    #[schema(example = "bob_ross")]
+    #[validate(length(min = 4, max = 63))]
+    username: String,
 
-    let session = Session::restore(x.id, x.user, x.ver, x.ip, x.last_active_at, x.created_at);
-    Ok(session)
+    #[schema(example = "Super_password!67")]
+    #[validate(length(min = 1, max = 127))]
+    passwd: String,
 }
 
-/// Обнолвение сессии или ее возможное удаление.
-async fn upd_session(app: &App, session: Session) -> Result<(), AppErr> {
-    if session.need_delete() {
-        sqlx::query!("delete from sessions where id = $1", session.id)
-            .execute(&app.pool)
-            .await?;
-    } else if session.need_upd() {
-        let ip = IpNetwork::new(session.ip, 32).expect("Invalid ip");
+#[derive(Deserialize, IntoParams, ToSchema)]
+struct LogoutQuery {
+    #[serde(default)]
+    all: bool,
+}
 
-        sqlx::query!(
-            r#"
-            update sessions set
-                ver = $2,
-                ip_addr = $3,
-                last_active_at = $4
-            where id = $1"#,
-            session.id,
-            session.ver,
-            ip,
-            session.last_active_at
-        )
-        .execute(&app.pool)
-        .await?;
+#[derive(Clone, Serialize, ToSchema)]
+struct SessionResp {
+    id: Uuid,
+    ip_addr: String,
+    last_active_at: DateTime<Utc>,
+    created_at: DateTime<Utc>,
+}
+
+impl From<Session> for SessionResp {
+    fn from(x: Session) -> Self {
+        Self {
+            id: x.id,
+            ip_addr: x.ip.to_string(),
+            last_active_at: x.last_active_at,
+            created_at: x.created_at,
+        }
     }
-
-    Ok(())
 }

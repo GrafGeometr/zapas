@@ -1,12 +1,13 @@
+use super::*;
 use crate::{
-    app::App,
     domain::auth::UserSession,
-    dto::*,
     err::{AppErr, AppErrJson},
     http::v1::auth_middleware,
+    repo::user::UserRepo,
 };
-use axum::{Extension, Json, Router, extract::State, middleware, routing::post};
-use utoipa::OpenApi;
+use axum::{Extension, Json, extract::State, middleware, routing::post};
+use serde::Deserialize;
+use utoipa::ToSchema;
 use validator::Validate;
 
 pub fn router(app: App) -> Router {
@@ -30,7 +31,7 @@ pub struct EmailApi;
         (status = 501, body = AppErrJson, description = "Not implemented"),
     )
 )]
-async fn forgot(State(_app): State<App>, Json(email): Json<EmailDto>) -> Result<(), AppErr> {
+async fn forgot(State(_app): State<App>, Json(email): Json<EmailReq>) -> Result<(), AppErr> {
     email.validate()?;
 
     Err(AppErr::NotImpl)
@@ -55,25 +56,12 @@ async fn forgot(State(_app): State<App>, Json(email): Json<EmailDto>) -> Result<
 async fn upd_email(
     State(app): State<App>,
     Extension(user): Extension<UserSession>,
-    Json(email): Json<EmailDto>,
+    Json(email): Json<EmailReq>,
 ) -> Result<(), AppErr> {
     email.validate()?;
 
-    sqlx::query!(
-        r#"
-        update users set
-            email = $2,
-            verified_email = false
-        where id = $1
-        returning id"#,
-        user.user,
-        email.email
-    )
-    .fetch_optional(&app.pool)
-    .await?
-    .ok_or(AppErr::NotFound)?;
-
-    {
+    let changed = app.user_repo.set_email(user.user, &email.email).await?;
+    if changed {
         // TODO add send verify email
     }
 
@@ -93,4 +81,10 @@ async fn verify(
     Extension(_user): Extension<UserSession>,
 ) -> Result<(), AppErr> {
     Err(AppErr::NotImpl)
+}
+
+#[derive(Deserialize, Validate, ToSchema)]
+struct EmailReq {
+    #[validate(email, length(max = 255))]
+    email: String,
 }
