@@ -17,7 +17,13 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0" }
 validator = { version = "0.21", features = ["derive"] }
 
-sqlx = { version = "0.9", features = ["runtime-tokio", "postgres", "uuid", "chrono", "ipnetwork"] }
+sqlx = { version = "0.9", features = [
+    "runtime-tokio",
+    "postgres",
+    "uuid",
+    "chrono",
+    "ipnetwork",
+] }
 
 uuid = { version = "1.26", features = ["v7", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }

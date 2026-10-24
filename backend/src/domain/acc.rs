@@ -52,7 +52,7 @@ use uuid::Uuid;
 const PRICE_PERIOD: Duration = Duration::days(30);
 
 /// Статистика по пользователю.
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct MemberStat {
     pub id: Uuid,
 
@@ -67,16 +67,16 @@ pub struct MemberStat {
 /// имеет вклад больше/меньше среднего.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 struct Delta {
-    id: Uuid,
-
     val: i64,
+
+    id: Uuid,
 }
 
 /// Результат алгоритма по минимизации транзакций.
 ///
 /// Показывает необходимость перевода от человека
 /// к человеку для усреднения баланса.
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct NeedTransaction {
     pub member_from: Uuid,
     pub member_to: Uuid,
@@ -170,97 +170,83 @@ pub fn accounting(members: &[MemberStat]) -> Vec<NeedTransaction> {
 /// Подаются данные за определенный период,
 /// на основе чего считается статистика.
 pub fn calc_stats(
-    members: &[Uuid],
+    mut members: Vec<Uuid>,
     mut portions: Vec<Portion>,
     trs: &[Transaction],
     mut prs: Vec<Purchases>,
 ) -> Vec<MemberStat> {
+    if members.is_empty() {
+        return Vec::new();
+    }
+
+    members.sort();
     portions.sort_by_key(|x| x.date);
     prs.sort_by_key(|x| x.date);
 
-    let mut res: HashMap<_, _> = members.iter().map(|x| (x, MemberStat::new(*x))).collect();
+    // Индексация в массиве по UUID.
+    let idx = |id: Uuid| members.binary_search(&id).unwrap();
 
-    for p in &portions {
-        res.get_mut(&p.member).unwrap().portions += p.cnt;
-    }
+    let mut res: Vec<_> = members.iter().map(|x| MemberStat::new(*x)).collect();
+
     for t in trs {
-        res.get_mut(&t.member_from).unwrap().transactions += t.money;
-        res.get_mut(&t.member_to).unwrap().transactions -= t.money;
+        res[idx(t.member_from)].transactions += t.money;
+        res[idx(t.member_to)].transactions -= t.money;
     }
     for p in &prs {
-        let x = res.get_mut(&p.member).unwrap();
         if p.is_food {
-            x.food_purchases += p.money;
+            res[idx(p.member)].food_purchases += p.money;
         } else {
-            x.not_food_purchases += p.money;
+            res[idx(p.member)].not_food_purchases += p.money;
         }
     }
+    for p in &portions {
+        res[idx(p.member)].portions += p.cnt;
+    }
 
-    if !portions.is_empty() {
-        let mut port_i = 0;
-        let mut port_j = 0;
+    let mut port_i = 0;
+    let mut port_j = 0;
 
-        let mut purch_i = 0;
-        let mut purch_j = 0;
+    let mut prs_i = 0;
+    let mut prs_j = 0;
 
-        let date = portions[0].date;
+    let mut portions_cnt = 0;
+    let mut food_purchases = 0;
 
-        let mut port_per_member: HashMap<_, _> = members.iter().map(|x| (x, 0i64)).collect();
-        let mut all_portions = 0;
-        let mut all_food_purch = 0;
+    while port_j < portions.len() {
+        let date = portions[port_j].date;
+        let start_date_index = port_j;
 
-        // Два указателя - держим окно для portions и purchases в PRICE_PERIOD дней.
-        while port_j < portions.len() {
-            while port_j < portions.len() && portions[port_j].date <= date {
-                let id = portions[port_j].member;
-                let cnt = portions[port_j].cnt;
-
-                all_portions += cnt;
-                *port_per_member.get_mut(&id).unwrap() += cnt;
-                port_j += 1;
-            }
-
-            while port_i < port_j && portions[port_i].date < date - PRICE_PERIOD {
-                let id = portions[port_i].member;
-                let cnt = portions[port_i].cnt;
-
-                all_portions -= cnt;
-                *port_per_member.get_mut(&id).unwrap() += cnt;
-                port_i += 1;
-            }
-
-            while purch_j < prs.len() && prs[port_j].date <= date {
-                if !prs[purch_j].is_food {
-                    continue;
-                }
-
-                all_food_purch += prs[purch_j].money;
-                purch_j += 1;
-            }
-
-            while purch_i < port_j && prs[purch_i].date <= date - PRICE_PERIOD {
-                if !prs[purch_i].is_food {
-                    continue;
-                }
-
-                all_food_purch -= prs[purch_i].money;
-                purch_i += 1;
-            }
-
-            if all_portions != 0 {
-                // Каждому участнику вычисляем, сколько он потратил из комнаты в этот день.
-                // Это будет число порций умножить на стоимость порции (с округлением вверх).
-                for (id, x) in res.iter_mut() {
-                    x.food_spent +=
-                        (all_food_purch * port_per_member[id] + all_portions - 1) / all_portions;
-                }
-            }
-
+        while port_j < portions.len() && portions[port_j].date <= date {
+            portions_cnt += portions[port_j].cnt;
             port_j += 1;
         }
+        while port_i < port_j && portions[port_i].date <= date - PRICE_PERIOD {
+            portions_cnt -= portions[port_i].cnt;
+            port_i += 1;
+        }
+
+        while prs_j < prs.len() && prs[prs_j].date <= date {
+            if prs[prs_j].is_food {
+                food_purchases += prs[prs_j].money;
+            }
+            prs_j += 1;
+        }
+        while prs_i < prs_j && prs[prs_i].date <= date - PRICE_PERIOD {
+            if prs[prs_i].is_food {
+                food_purchases -= prs[prs_i].money;
+            }
+            prs_i += 1;
+        }
+
+        if portions_cnt != 0 {
+            for p in &portions[start_date_index..port_j] {
+                res[idx(p.member)].food_spent +=
+                    (food_purchases * p.cnt + portions_cnt / 2) / portions_cnt;
+            }
+        }
     }
 
-    res.into_values().collect()
+    res
 }
 
 impl MemberStat {
@@ -308,7 +294,7 @@ impl Delta {
     ///
     /// Увеличивает вклад текущего и уменьшает вклад другого.
     fn send_money(&self, to: Delta) -> i64 {
-        min(-self.val, to.val).min(0)
+        min(-self.val, to.val).max(0)
     }
 }
 
@@ -321,5 +307,250 @@ impl AddAssign<i64> for Delta {
 impl SubAssign<i64> for Delta {
     fn sub_assign(&mut self, rhs: i64) {
         self.val -= rhs;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::DateTime;
+
+    fn create_portion(member: Uuid, date: NaiveDate, cnt: i64) -> Portion {
+        Portion { member, date, cnt }
+    }
+
+    fn create_transaction(member_from: Uuid, member_to: Uuid, money: i64) -> Transaction {
+        Transaction {
+            member_from,
+            member_to,
+            money,
+        }
+    }
+
+    fn create_purchase(member: Uuid, money: i64, is_food: bool, date: NaiveDate) -> Purchases {
+        Purchases {
+            member,
+            money,
+            is_food,
+            date,
+        }
+    }
+
+    #[test]
+    fn test_calc_stats_empty() {
+        let m = Vec::new();
+        let p = Vec::new();
+        let trs = Vec::new();
+        let prs = Vec::new();
+
+        let res = calc_stats(m.clone(), p, &trs, prs);
+        assert_eq!(res, Vec::new());
+    }
+
+    #[test]
+    fn test_calc_stats_single_member() {
+        let id = Uuid::now_v7();
+        let mut stat = MemberStat::new(id);
+
+        let m = vec![id];
+        let mut p = Vec::new();
+        let trs = Vec::new();
+        let mut prs = Vec::new();
+
+        let res = calc_stats(m.clone(), p.clone(), &trs, prs.clone());
+        assert_eq!(res, vec![stat]);
+
+        let x = DateTime::UNIX_EPOCH;
+        prs.push(Purchases {
+            member: id,
+            money: 100,
+            is_food: true,
+            date: x.date_naive(),
+        });
+        stat.food_purchases += 100;
+        let res = calc_stats(m.clone(), p.clone(), &trs, prs.clone());
+        assert_eq!(res, vec![stat]);
+
+        p.push(Portion {
+            member: id,
+            date: x.date_naive(),
+            cnt: 5,
+        });
+        stat.food_spent += 100;
+        stat.portions += 5;
+        let res = calc_stats(m.clone(), p.clone(), &trs, prs.clone());
+        assert_eq!(res, vec![stat]);
+    }
+
+    #[test]
+    fn test_calc_stats_multiple_members() {
+        let id1 = Uuid::now_v7();
+        let id2 = Uuid::now_v7();
+        let members = vec![id1, id2];
+        let portions = vec![
+            create_portion(id1, NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(), 2),
+            create_portion(id2, NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(), 3),
+        ];
+        let trs = vec![
+            create_transaction(id1, id2, 5),
+            create_transaction(id2, id1, 3),
+        ];
+        let prs = vec![
+            create_purchase(id1, 100, true, NaiveDate::from_ymd_opt(2026, 1, 1).unwrap()),
+            create_purchase(
+                id2,
+                200,
+                false,
+                NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(),
+            ),
+        ];
+
+        let mut result = calc_stats(members, portions, &trs, prs);
+        result.sort_by_key(|x| x.id);
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0].id, id1);
+        assert_eq!(result[0].portions, 2);
+        assert_eq!(result[0].food_purchases, 100);
+        assert_eq!(result[0].not_food_purchases, 0);
+        assert_eq!(result[0].transactions, 5 - 3);
+        assert_eq!(result[0].food_spent, 40);
+        assert_eq!(result[1].id, id2);
+        assert_eq!(result[1].portions, 3);
+        assert_eq!(result[1].food_purchases, 0);
+        assert_eq!(result[1].not_food_purchases, 200);
+        assert_eq!(result[1].transactions, 3 - 5);
+        assert_eq!(result[1].food_spent, 60);
+    }
+
+    #[test]
+    fn test_accounting_empty() {
+        let members = vec![];
+
+        let result = accounting(&members);
+        assert_eq!(result, vec![]);
+    }
+
+    #[test]
+    fn test_accounting_single_member() {
+        let id = Uuid::now_v7();
+        let member_stat = MemberStat::new(id);
+
+        let result = accounting(&vec![member_stat]);
+        assert_eq!(result, vec![]);
+    }
+
+    #[test]
+    fn test_accounting_multiple_members() {
+        let id1 = Uuid::now_v7();
+        let id2 = Uuid::now_v7();
+        let members = vec![id1, id2];
+        let portions = vec![
+            create_portion(id1, NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(), 2),
+            create_portion(id2, NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(), 3),
+        ];
+        let trs = vec![
+            create_transaction(id1, id2, 5),
+            create_transaction(id2, id1, 3),
+        ];
+        let prs = vec![
+            create_purchase(id1, 100, true, NaiveDate::from_ymd_opt(2026, 1, 1).unwrap()),
+            create_purchase(
+                id2,
+                200,
+                false,
+                NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(),
+            ),
+        ];
+
+        let result = accounting(&calc_stats(members, portions, &trs, prs));
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].member_from, id1);
+        assert_eq!(result[0].member_to, id2);
+        assert_eq!(result[0].money, 38);
+        // id1: 100 - 20 * 2 + 5 - 3 = 62
+        // id2: 200 - 20 * 3 - 5 + 3 = 138
+    }
+
+    #[test]
+    fn test_calc_stats_multi_day() {
+        let id = Uuid::now_v7();
+        let d1 = NaiveDate::from_ymd_opt(2026, 1, 1).unwrap();
+        let d2 = NaiveDate::from_ymd_opt(2026, 1, 2).unwrap();
+        let d3 = NaiveDate::from_ymd_opt(2026, 1, 3).unwrap();
+
+        let portions = vec![
+            create_portion(id, d1, 1),
+            create_portion(id, d2, 1),
+            create_portion(id, d3, 1),
+        ];
+        let prs = vec![
+            create_purchase(id, 30, true, d1),
+            create_purchase(id, 60, true, d2),
+            create_purchase(id, 90, true, d3),
+        ];
+
+        let res = calc_stats(vec![id], portions, &[], prs);
+        assert_eq!(res[0].food_spent, 135);
+    }
+
+    #[test]
+    fn test_calc_stats_window_expires_old_purchases() {
+        let id = Uuid::now_v7();
+        let old = NaiveDate::from_ymd_opt(2026, 1, 1).unwrap();
+        let new = NaiveDate::from_ymd_opt(2026, 2, 15).unwrap(); // 45 дней
+
+        let portions = vec![create_portion(id, old, 1), create_portion(id, new, 1)];
+        let prs = vec![
+            create_purchase(id, 100, true, old),
+            create_purchase(id, 200, true, new),
+        ];
+
+        let res = calc_stats(vec![id], portions, &[], prs);
+        // old: 100, new: только 200 в окне, 1×200 = 200. Итого 300.
+        assert_eq!(res[0].food_spent, 300);
+    }
+
+    #[test]
+    fn test_calc_stats_window_boundary_30_days() {
+        let id = Uuid::now_v7();
+        let d1 = NaiveDate::from_ymd_opt(2026, 1, 1).unwrap();
+        let d2 = d1 + Duration::days(30); // ровно 30 дней спустя
+
+        let portions = vec![create_portion(id, d1, 1), create_portion(id, d2, 1)];
+        let prs = vec![
+            create_purchase(id, 100, true, d1),
+            create_purchase(id, 100, true, d2),
+        ];
+
+        let res = calc_stats(vec![id], portions, &[], prs);
+        // При окне [d2-29, d2] d1 выпадает. На d2: 1 порция, 100 трат → 100.
+        // Итого: 100 (d1) + 100 (d2) = 200.
+        assert_eq!(res[0].food_spent, 200);
+    }
+
+    #[test]
+    fn test_calc_stats_multiple_portions_same_day() {
+        let id = Uuid::now_v7();
+        let d = NaiveDate::from_ymd_opt(2026, 1, 1).unwrap();
+
+        let portions = vec![create_portion(id, d, 2), create_portion(id, d, 3)];
+        let prs = vec![create_purchase(id, 100, true, d)];
+
+        let res = calc_stats(vec![id], portions, &[], prs);
+        assert_eq!(res[0].portions, 5);
+        assert_eq!(res[0].food_spent, 100);
+    }
+
+    #[test]
+    fn test_delta_ordering_by_value() {
+        let negative_large = Delta {
+            val: -100,
+            id: Uuid::from_u128(2),
+        };
+        let positive_small = Delta {
+            val: 100,
+            id: Uuid::from_u128(1),
+        };
+        assert!(negative_large < positive_small);
     }
 }
