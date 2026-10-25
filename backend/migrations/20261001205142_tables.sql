@@ -73,19 +73,13 @@ create table rooms (
 create table members (
     id uuid not null,
 
-    user_id uuid null default null, --soft delete
+    user_id uuid not null,
     room_id uuid not null,
 
     display_name display_name_t null default null,
     bio bio_t null default null,
 
     default_portions bigint not null default 0,
-
-    precalc_portions bigint not null default 0,
-    precalc_food_purchases bigint not null default 0,
-    precalc_not_food_purchases bigint not null default 0,
-    precalc_transactions bigint not null default 0,
-    precalc_food_spent bigint not null default 0,
 
     created_at timestamptz not null default now(),
 
@@ -94,7 +88,7 @@ create table members (
     constraint members_user_id_fk foreign key
         (user_id)
     references users(id)
-        on delete set null,
+        on delete cascade,
     constraint members_room_id_fk foreign key
         (room_id)
     references rooms(id)

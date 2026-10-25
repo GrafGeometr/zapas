@@ -43,7 +43,7 @@
 use chrono::{Duration, NaiveDate};
 use std::{
     cmp::min,
-    collections::{BTreeSet, HashMap},
+    collections::BTreeSet,
     ops::{AddAssign, SubAssign},
 };
 use uuid::Uuid;
