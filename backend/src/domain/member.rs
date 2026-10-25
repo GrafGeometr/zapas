@@ -1,7 +1,7 @@
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, NaiveDate, Utc};
 use uuid::Uuid;
 
-#[derive(Clone)]
+#[derive(Clone, Hash, PartialEq, Eq)]
 pub struct Member {
     pub id: Uuid,
 
@@ -35,4 +35,10 @@ pub struct OriginMember {
 pub struct SetMemberProfile {
     pub display_name: Option<String>,
     pub bio: Option<String>,
+}
+
+#[derive(Clone, Copy)]
+pub struct PortionWithDate {
+    pub cnt: i64,
+    pub date: NaiveDate,
 }
