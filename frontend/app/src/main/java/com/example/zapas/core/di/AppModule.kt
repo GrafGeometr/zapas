@@ -9,6 +9,7 @@ import com.example.zapas.core.network.NetworkErrorMapper
 import com.example.zapas.core.local.TokenManager
 import com.example.zapas.core.local.storage.KeyValueStorage
 import com.example.zapas.core.local.storage.SharedPreferenceStorage
+import com.example.zapas.core.network.TokenAuthenticator
 import com.example.zapas.features.auth.data.repository.AuthRepositoryImpl
 import com.example.zapas.features.rooms.data.repository.RoomsRepositoryImpl
 import com.example.zapas.features.profile.data.repository.UserRepositoryImpl
@@ -39,8 +40,14 @@ object AppModule {
     @Provides
     @Singleton
     fun provideAuthInterceptor(
-        tokenManager: TokenManager, authRepository: Lazy<AuthRepository>
-    ): AuthInterceptor = AuthInterceptor(tokenManager, authRepository)
+        tokenManager: TokenManager
+    ): AuthInterceptor = AuthInterceptor(tokenManager)
+
+    @Provides @Singleton
+    fun provideTokenAuthenticator(
+        tokenManager: TokenManager,
+        authRepository: Lazy<AuthRepository>
+    ): TokenAuthenticator = TokenAuthenticator(tokenManager, authRepository)
 
     @Provides
     @Singleton

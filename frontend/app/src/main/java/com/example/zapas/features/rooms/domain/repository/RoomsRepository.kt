@@ -4,11 +4,8 @@ import androidx.paging.PagingData
 import arrow.core.Either
 import com.example.zapas.core.domain.model.AppError
 import com.example.zapas.core.utils.PagingPage
-import com.example.zapas.features.rooms.data.dto.response.MemberDto
 import com.example.zapas.features.rooms.domain.model.Member
-import com.example.zapas.features.rooms.domain.model.MembersPage
 import com.example.zapas.features.rooms.domain.model.Room
-import com.example.zapas.features.rooms.domain.model.RoomsPage
 import kotlinx.coroutines.flow.Flow
 
 interface RoomsRepository {
@@ -20,15 +17,27 @@ interface RoomsRepository {
 
     suspend fun getRoomProfile(roomId: String): Either<AppError, Room>
 
-    suspend fun editRoomProfile(roomId: String, displayName: String?, bio: String?): Either<AppError, Room>
+    suspend fun editRoomProfile(
+        roomId: String,
+        displayName: String?,
+        bio: String?
+    ): Either<AppError, Room>
 
-    suspend fun updateRoomTimings(roomId: String, expiredNotify: String?, reviewInterval: String?): Either<AppError, Room>
+    suspend fun updateRoomTimings(
+        roomId: String,
+        expiredNotify: String?,
+        reviewInterval: String?
+    ): Either<AppError, Room>
 
     suspend fun getInviteToken(roomId: String): Either<AppError, String>
 
     suspend fun joinRoom(token: String): Either<AppError, String>
 
-    suspend fun getRoomMembers(roomId: String, page: Int? = 0, size: Int = 50): Either<AppError, PagingPage<Member>>
+    suspend fun getRoomMembers(
+        roomId: String,
+        page: Int? = 0,
+        size: Int = 50
+    ): Either<AppError, PagingPage<Member>>
 
     fun getMembersPaged(roomId: String): Flow<PagingData<Member>>
 

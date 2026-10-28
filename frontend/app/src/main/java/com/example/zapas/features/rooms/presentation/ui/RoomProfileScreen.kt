@@ -1,5 +1,6 @@
 package com.example.zapas.features.rooms.presentation.ui
 
+import android.content.res.Configuration
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -71,6 +72,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.paging.compose.collectAsLazyPagingItems
@@ -82,6 +84,7 @@ import com.example.zapas.features.rooms.domain.model.Member
 import com.example.zapas.features.rooms.domain.model.Room
 import com.example.zapas.features.rooms.presentation.viewmodel.RoomProfileState
 import com.example.zapas.features.rooms.presentation.viewmodel.RoomProfileViewModel
+import com.example.zapas.ui.theme.ZapasTheme
 
 @Composable
 fun RoomProfileScreen(
@@ -658,8 +661,8 @@ fun RoomMembersSection(
             Card(
                 modifier = Modifier.fillMaxWidth()
             ) {
-                LazyColumn {
-                    items(count = members.itemCount) { index ->
+                Column {
+                    repeat(members.itemCount) { index ->
                         val member = members[index]
 
                         if (member != null) {
@@ -928,182 +931,283 @@ fun DeleteRoomDialog(
 
 // --- Previews ---
 
-private val sampleRoom = Room(
-    id = "room-1234-5678",
-    displayName = "Кладовка #1",
-    bio = "Главный склад запасов и инструментов на даче.",
-    createdAt = "2026-01-15",
-    expiredNotify = "24h",
-    reviewInterval = "30d"
-)
+private object PreviewSample {
 
-private val sampleMembers = listOf(
-    MemberDto(
-        id = "m1",
-        roomId = "room-1234-5678",
-        userId = "u1",
-        displayName = "Алексей Иванов",
-        bio = "Администратор",
-        createdAt = "2026-01-15"
-    ),
-    MemberDto(
-        id = "m2",
-        roomId = "room-1234-5678",
-        userId = "u2",
-        displayName = "Мария Петрова",
-        bio = "Участник",
-        createdAt = "2026-02-01"
+    val room = Room(
+        id = "room-1234-5678-abcd-000000000001",
+        displayName = "Кладовка #1",
+        bio = "Главный склад запасов и инструментов на даче.",
+        createdAt = "2026-01-15T10:30:00Z",
+        expiredNotify = "24h",
+        reviewInterval = "30d",
     )
-)
 
-//@Preview(showBackground = true, name = "Успешная загрузка")
-//@Composable
-//fun RoomProfileScreenSuccessPreview() {
-//    ZapasTheme {
-//        RoomProfileScreenContent(
-//            state = RoomProfileState(
-//                room = sampleRoom,
-//                members = sampleMembers,
-//                isLoading = false
-//            ),
-//            onBack = {},
-//            onRefresh = {},
-//            onShowEditDialog = {},
-//            onShowTimingsDialog = {},
-//            onGenerateInvite = {},
-//            onShowDeleteDialog = {}
-//        )
-//    }
-//}
-//
-//@Preview(showBackground = true, name = "Без участников")
-//@Composable
-//fun RoomProfileScreenEmptyMembersPreview() {
-//    ZapasTheme {
-//        RoomProfileScreenContent(
-//            state = RoomProfileState(
-//                room = sampleRoom,
-//                members = emptyList(),
-//                isLoading = false
-//            ),
-//            onBack = {},
-//            onRefresh = {},
-//            onShowEditDialog = {},
-//            onShowTimingsDialog = {},
-//            onGenerateInvite = {},
-//            onShowDeleteDialog = {}
-//        )
-//    }
-//}
-//
-//@Preview(showBackground = true, name = "Загрузка")
-//@Composable
-//fun RoomProfileScreenLoadingPreview() {
-//    ZapasTheme {
-//        RoomProfileScreenContent(
-//            state = RoomProfileState(
-//                isLoading = true,
-//                room = null
-//            ),
-//            onBack = {},
-//            onRefresh = {},
-//            onShowEditDialog = {},
-//            onShowTimingsDialog = {},
-//            onGenerateInvite = {},
-//            onShowDeleteDialog = {}
-//        )
-//    }
-//}
-//
-//@Preview(showBackground = true, name = "Ошибка загрузки")
-//@Composable
-//fun RoomProfileScreenErrorPreview() {
-//    ZapasTheme {
-//        RoomProfileScreenContent(
-//            state = RoomProfileState(
-//                isLoading = false,
-//                error = "Не удалось загрузить данные комнаты. Проверьте подключение к сети.",
-//                room = null
-//            ),
-//            onBack = {},
-//            onRefresh = {},
-//            onShowEditDialog = {},
-//            onShowTimingsDialog = {},
-//            onGenerateInvite = {},
-//            onShowDeleteDialog = {}
-//        )
-//    }
-//}
-//
-//@Preview(showBackground = true, name = "Тёмная тема", uiMode = Configuration.UI_MODE_NIGHT_YES)
-//@Composable
-//fun RoomProfileScreenDarkPreview() {
-//    ZapasTheme {
-//        RoomProfileScreenContent(
-//            state = RoomProfileState(
-//                room = sampleRoom,
-//                members = sampleMembers,
-//                isLoading = false
-//            ),
-//            onBack = {},
-//            onRefresh = {},
-//            onShowEditDialog = {},
-//            onShowTimingsDialog = {},
-//            onGenerateInvite = {},
-//            onShowDeleteDialog = {}
-//        )
-//    }
-//}
-//
-//@Preview(showBackground = true, name = "Диалог - Редактирование")
-//@Composable
-//fun EditRoomProfileDialogPreview() {
-//    ZapasTheme {
-//        Surface {
-//            EditRoomProfileDialog(
-//                currentName = sampleRoom.displayName,
-//                currentBio = sampleRoom.bio,
-//                isLoading = false,
-//                onDismiss = {},
-//                onConfirm = { _, _ -> }
-//            )
-//        }
-//    }
-//}
-//
-//@Preview(showBackground = true, name = "Диалог - Тайминги")
-//@Composable
-//fun UpdateTimingsDialogPreview() {
-//    ZapasTheme {
-//        UpdateTimingsDialog(
-//            currentExpiredNotify = sampleRoom.expiredNotify.orEmpty(),
-//            currentReviewInterval = sampleRoom.reviewInterval.orEmpty(),
-//            isLoading = false,
-//            onDismiss = {},
-//            onConfirm = { _, _ -> }
-//        )
-//    }
-//}
-//
-//@Preview(showBackground = true, name = "Диалог - Инвайт токен")
-//@Composable
-//fun InviteTokenDialogPreview() {
-//    ZapasTheme {
-//        InviteTokenDialog(
-//            token = "ABC123XYZ789",
-//            onDismiss = {}
-//        )
-//    }
-//}
-//
-//@Preview(showBackground = true, name = "Диалог - Удаление комнаты")
-//@Composable
-//fun DeleteRoomDialogPreview() {
-//    ZapasTheme {
-//        DeleteRoomDialog(
-//            isLoading = false,
-//            onDismiss = {},
-//            onConfirm = {}
-//        )
-//    }
-//}
+    val roomNoBio = room.copy(bio = "")
+    val roomNoTimings = room.copy(expiredNotify = null, reviewInterval = null)
+
+    val roomLong = room.copy(
+        displayName = "Очень длинное название комнаты для кладовки с инструментами и запасами",
+        bio = buildString {
+            repeat(6) {
+                append("Это длинное описание, которое проверяет перенос строк и обрезку. ")
+            }
+        },
+    )
+
+    fun member(
+        id: String,
+        displayName: String,
+        bio: String,
+        userId: String? = null,
+    ) = Member(
+        id = id,
+        roomId = room.id,
+        userId = userId,
+        displayName = displayName,
+        bio = bio,
+        createdAt = "2026-01-15T10:30:00Z",
+    )
+
+    val members = listOf(
+        member("m1", "Анна", "Администратор", "u1"),
+        member("m2", "Иван", "Участник", "u2"),
+        member("m3", "Ольга", "", "u3"),
+        member("m4", "Гость", "Приглашён по ссылке"), // без аккаунта, userId = null
+    )
+
+    val manyMembers: List<Member> = (1..30).map { i ->
+        member(
+            id = "m$i",
+            displayName = "Участник $i",
+            bio = if (i % 2 == 0) "Роль $i" else "",
+            userId = if (i % 3 == 0) null else "u$i",
+        )
+    }
+}
+
+private class PreviewMembers(
+    private val items: List<Member>,
+    override val isRefreshing: Boolean = false,
+    override val isLoadingMore: Boolean = false,
+) : PagingSourceList<Member> {
+    override val itemCount: Int get() = items.size
+    override fun get(index: Int): Member? = items.getOrNull(index)
+    override val refreshError: Throwable? = null
+    override val appendError: Throwable? = null
+    override fun retry() = Unit
+}
+
+// ---------- Экран: состояния ----------
+
+@Preview(showBackground = true, name = "01 — Загрузка")
+@Composable
+private fun RoomProfileLoadingPreview() {
+    ZapasTheme {
+        RoomProfileScreenContent(
+            members = PreviewMembers(emptyList(), isRefreshing = true),
+            state = RoomProfileState(isLoading = true, room = null),
+            onBack = {}, onRefresh = {},
+            onShowEditDialog = {}, onShowTimingsDialog = {},
+            onGenerateInvite = {}, onShowDeleteDialog = {},
+        )
+    }
+}
+
+@Preview(showBackground = true, name = "02 — Ошибка загрузки")
+@Composable
+private fun RoomProfileErrorPreview() {
+    ZapasTheme {
+        RoomProfileScreenContent(
+            members = PreviewMembers(emptyList()),
+            state = RoomProfileState(
+                room = null,
+                isLoading = false,
+                error = "Не удалось загрузить комнату. Проверьте подключение к сети.",
+            ),
+            onBack = {}, onRefresh = {},
+            onShowEditDialog = {}, onShowTimingsDialog = {},
+            onGenerateInvite = {}, onShowDeleteDialog = {},
+        )
+    }
+}
+
+@Preview(showBackground = true, name = "03 — Успех, с участниками")
+@Composable
+private fun RoomProfileSuccessPreview() {
+    ZapasTheme {
+        RoomProfileScreenContent(
+            members = PreviewMembers(PreviewSample.members),
+            state = RoomProfileState(room = PreviewSample.room),
+            onBack = {}, onRefresh = {},
+            onShowEditDialog = {}, onShowTimingsDialog = {},
+            onGenerateInvite = {}, onShowDeleteDialog = {},
+        )
+    }
+}
+
+@Preview(showBackground = true, name = "04 — Без участников")
+@Composable
+private fun RoomProfileNoMembersPreview() {
+    ZapasTheme {
+        RoomProfileScreenContent(
+            members = PreviewMembers(emptyList()),
+            state = RoomProfileState(room = PreviewSample.room),
+            onBack = {}, onRefresh = {},
+            onShowEditDialog = {}, onShowTimingsDialog = {},
+            onGenerateInvite = {}, onShowDeleteDialog = {},
+        )
+    }
+}
+
+@Preview(showBackground = true, name = "05 — Без описания")
+@Composable
+private fun RoomProfileNoBioPreview() {
+    ZapasTheme {
+        RoomProfileScreenContent(
+            members = PreviewMembers(PreviewSample.members.take(2)),
+            state = RoomProfileState(room = PreviewSample.roomNoBio),
+            onBack = {}, onRefresh = {},
+            onShowEditDialog = {}, onShowTimingsDialog = {},
+            onGenerateInvite = {}, onShowDeleteDialog = {},
+        )
+    }
+}
+
+@Preview(showBackground = true, name = "06 — Без таймингов")
+@Composable
+private fun RoomProfileNoTimingsPreview() {
+    ZapasTheme {
+        RoomProfileScreenContent(
+            members = PreviewMembers(PreviewSample.members.take(1)),
+            state = RoomProfileState(room = PreviewSample.roomNoTimings),
+            onBack = {}, onRefresh = {},
+            onShowEditDialog = {}, onShowTimingsDialog = {},
+            onGenerateInvite = {}, onShowDeleteDialog = {},
+        )
+    }
+}
+
+@Preview(showBackground = true, name = "07 — Длинный контент")
+@Composable
+private fun RoomProfileLongContentPreview() {
+    ZapasTheme {
+        RoomProfileScreenContent(
+            members = PreviewMembers(PreviewSample.manyMembers),
+            state = RoomProfileState(room = PreviewSample.roomLong),
+            onBack = {}, onRefresh = {},
+            onShowEditDialog = {}, onShowTimingsDialog = {},
+            onGenerateInvite = {}, onShowDeleteDialog = {},
+        )
+    }
+}
+
+@Preview(
+    showBackground = true,
+    name = "08 — Тёмная тема",
+    uiMode = Configuration.UI_MODE_NIGHT_YES,
+)
+@Composable
+private fun RoomProfileDarkPreview() {
+    ZapasTheme {
+        RoomProfileScreenContent(
+            members = PreviewMembers(PreviewSample.members),
+            state = RoomProfileState(room = PreviewSample.room),
+            onBack = {}, onRefresh = {},
+            onShowEditDialog = {}, onShowTimingsDialog = {},
+            onGenerateInvite = {}, onShowDeleteDialog = {},
+        )
+    }
+}
+
+// ---------- Диалоги ----------
+
+@Preview(showBackground = true, name = "Диалог — редактирование")
+@Composable
+private fun EditRoomDialogPreview() {
+    ZapasTheme {
+        EditRoomProfileDialog(
+            currentName = PreviewSample.room.displayName,
+            currentBio = PreviewSample.room.bio,
+            isLoading = false,
+            onDismiss = {},
+            onConfirm = { _, _ -> },
+        )
+    }
+}
+
+@Preview(showBackground = true, name = "Диалог — редактирование (загрузка)")
+@Composable
+private fun EditRoomDialogLoadingPreview() {
+    ZapasTheme {
+        EditRoomProfileDialog(
+            currentName = PreviewSample.room.displayName,
+            currentBio = PreviewSample.room.bio,
+            isLoading = true,
+            onDismiss = {},
+            onConfirm = { _, _ -> },
+        )
+    }
+}
+
+@Preview(showBackground = true, name = "Диалог — тайминги")
+@Composable
+private fun UpdateTimingsDialogPreview() {
+    ZapasTheme {
+        UpdateTimingsDialog(
+            currentExpiredNotify = PreviewSample.room.expiredNotify.orEmpty(),
+            currentReviewInterval = PreviewSample.room.reviewInterval.orEmpty(),
+            isLoading = false,
+            onDismiss = {},
+            onConfirm = { _, _ -> },
+        )
+    }
+}
+
+@Preview(showBackground = true, name = "Диалог — тайминги (загрузка)")
+@Composable
+private fun UpdateTimingsDialogLoadingPreview() {
+    ZapasTheme {
+        UpdateTimingsDialog(
+            currentExpiredNotify = PreviewSample.room.expiredNotify.orEmpty(),
+            currentReviewInterval = PreviewSample.room.reviewInterval.orEmpty(),
+            isLoading = true,
+            onDismiss = {},
+            onConfirm = { _, _ -> },
+        )
+    }
+}
+
+@Preview(showBackground = true, name = "Диалог — инвайт")
+@Composable
+private fun InviteTokenDialogPreview() {
+    ZapasTheme {
+        InviteTokenDialog(
+            token = "eyJhbGciOiJIUzI1NiJ9.eyJyb29tX2lkIjoicm9vbS0xMjM0In0.demo-signature",
+            onDismiss = {},
+        )
+    }
+}
+
+@Preview(showBackground = true, name = "Диалог — удаление")
+@Composable
+private fun DeleteRoomDialogPreview() {
+    ZapasTheme {
+        DeleteRoomDialog(
+            isLoading = false,
+            onDismiss = {},
+            onConfirm = {},
+        )
+    }
+}
+
+@Preview(showBackground = true, name = "Диалог — удаление (загрузка)")
+@Composable
+private fun DeleteRoomDialogLoadingPreview() {
+    ZapasTheme {
+        DeleteRoomDialog(
+            isLoading = true,
+            onDismiss = {},
+            onConfirm = {},
+        )
+    }
+}
