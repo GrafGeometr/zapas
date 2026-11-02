@@ -1,0 +1,130 @@
+package com.example.zapas.features.members.presentation.ui
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.dp
+import com.example.zapas.core.components.PreviewableAlertDialog
+import com.example.zapas.features.members.presentation.viewmodel.MemberDialog
+import com.example.zapas.features.members.presentation.viewmodel.MemberProfileState
+import com.example.zapas.features.members.presentation.viewmodel.parsePortions
+
+@Composable
+fun MemberPortionsDialog(
+    state: MemberProfileState,
+    onDismiss: () -> Unit,
+    onSave: (String) -> Unit
+) {
+    val isDefault = state.dialog == MemberDialog.DEFAULT_PORTIONS
+    val initial = if (isDefault) state.defaultPortions else state.selectedPortion?.portions
+    var value by rememberSaveable(state.dialog, state.selectedPortion?.date) {
+        mutableStateOf(initial?.toString().orEmpty())
+    }
+    val valid = parsePortions(value) != null
+    PreviewableAlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(if (isDefault) "Порции по умолчанию" else "Порции за ${state.selectedPortion?.date}") },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                if (isDefault) Text("Существующие записи по датам не изменятся.")
+                OutlinedTextField(
+                    value = value,
+                    onValueChange = { value = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Количество порций") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    enabled = !state.isSaving,
+                    isError = !valid,
+                    supportingText = {
+                        Text(if (valid) "Ноль допустим" else "Введите целое неотрицательное число допустимого размера")
+                    }
+                )
+                state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+            }
+        },
+        confirmButton = {
+            Button(onClick = { onSave(value) }, enabled = valid && !state.isSaving) {
+                if (state.isSaving) CircularProgressIndicator(modifier = Modifier.size(24.dp)) else Text("Сохранить")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, enabled = !state.isSaving) { Text("Отмена") }
+        }
+    )
+}
+
+@Composable
+fun MemberProfileDialog(
+    state: MemberProfileState,
+    onDismiss: () -> Unit,
+    onSave: (String, String) -> Unit
+) {
+    var displayName by rememberSaveable {
+        mutableStateOf(state.localProfile?.displayName ?: state.member?.displayName.orEmpty())
+    }
+    var bio by rememberSaveable {
+        mutableStateOf(state.localProfile?.bio ?: state.member?.bio.orEmpty())
+    }
+    PreviewableAlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Профиль в комнате") },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text("Изменения относятся только к этой комнате.")
+                OutlinedTextField(
+                    value = displayName,
+                    onValueChange = { displayName = it },
+                    label = { Text("Имя в комнате") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    enabled = !state.isSaving,
+                    isError = displayName.isBlank()
+                )
+                OutlinedTextField(
+                    value = bio,
+                    onValueChange = { bio = it },
+                    label = { Text("Описание в комнате") },
+                    maxLines = 4,
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !state.isSaving
+                )
+                state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onSave(displayName, bio) },
+                enabled = displayName.isNotBlank() && !state.isSaving
+            ) {
+                if (state.isSaving) CircularProgressIndicator(modifier = Modifier.size(24.dp)) else Text("Сохранить")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, enabled = !state.isSaving) { Text("Отмена") }
+        }
+    )
+}
