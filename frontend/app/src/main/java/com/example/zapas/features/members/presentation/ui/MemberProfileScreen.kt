@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -91,9 +90,6 @@ fun MemberProfileScreenContent(
                         }
                     }
                 }
-                state.identityError?.let { error ->
-                    item { MemberError("Не удалось определить текущего пользователя: $error", onRefresh) }
-                }
                 item {
                     OutlinedCard(modifier = Modifier.fillMaxWidth()) {
                         Column(
@@ -101,18 +97,14 @@ fun MemberProfileScreenContent(
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Text("Порций по умолчанию", style = MaterialTheme.typography.titleMedium)
-                            if (state.isDefaultPortionsLoading) CircularProgressIndicator(modifier = Modifier.size(24.dp))
                             state.defaultPortions?.let { Text(it.toString()) }
-                            state.defaultPortionsError?.let { MemberError(it, onRefresh) }
                         }
                     }
                 }
                 item {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text("Порции за ${state.periodTitle}", style = MaterialTheme.typography.titleMedium)
-                        if (state.isPortionsLoading) CircularProgressIndicator(modifier = Modifier.size(24.dp))
-                        state.portionsError?.let { MemberError(it, onRefresh) }
-                        if (!state.isPortionsLoading && state.portionsError == null && state.portions.isEmpty())
+                        if (!state.isLoading && state.error == null && state.portions.isEmpty())
                             Text("За этот период записей нет")
                     }
                 }
@@ -149,9 +141,7 @@ private fun MemberProfilePreview() {
                 defaultPortions = 1,
                 portions = listOf(MemberPortion("2026-11-01", 0), MemberPortion("2026-11-02", 2)),
                 periodTitle = "ноябрь 2026",
-                isLoading = false,
-                isDefaultPortionsLoading = false,
-                isPortionsLoading = false
+                isLoading = false
             ),
             onBack = {},
             onRefresh = {}

@@ -14,6 +14,7 @@ import com.example.zapas.features.profile.domain.usecase.GetProfileUseCase
 import com.example.zapas.features.rooms.domain.model.Member
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -30,12 +31,7 @@ data class MemberProfileState(
     val portions: List<MemberPortion> = emptyList(),
     val periodTitle: String = "",
     val isLoading: Boolean = true,
-    val isDefaultPortionsLoading: Boolean = true,
-    val isPortionsLoading: Boolean = true,
-    val error: String? = null,
-    val identityError: String? = null,
-    val defaultPortionsError: String? = null,
-    val portionsError: String? = null
+    val error: String? = null
 ) {
     val isOwnProfile: Boolean?
         get() = currentUserId?.let { userId -> member?.userId?.let { it == userId } }
@@ -68,43 +64,31 @@ class MemberProfileViewModel @Inject constructor(
 
     fun load() {
         loadJob?.cancel()
-        _state.update {
-            it.copy(
-                isLoading = true, isDefaultPortionsLoading = true, isPortionsLoading = true,
-                error = null, identityError = null, defaultPortionsError = null, portionsError = null
-            )
-        }
+        _state.update { it.copy(isLoading = true, error = null) }
         loadJob = viewModelScope.launch {
-            launch {
-                getMemberUseCase(memberId).fold(
-                    { error -> _state.update { it.copy(isLoading = false, error = formatError(error)) } },
-                    { member -> _state.update { it.copy(isLoading = false, member = member) } }
-                )
+            val memberRequest = async { getMemberUseCase(memberId) }
+            val profileRequest = async { getProfileUseCase() }
+            val defaultPortionsRequest = async { getDefaultPortionsUseCase(memberId) }
+            val portionsRequest = async {
+                getMemberPortionsUseCase(GetMemberPortionsUseCase.Params(memberId, begin, end))
             }
-            launch {
-                getProfileUseCase().fold(
-                    { error -> _state.update { it.copy(identityError = formatError(error)) } },
-                    { user -> _state.update { it.copy(currentUserId = user.id) } }
-                )
+
+            val member = memberRequest.await()
+            val profile = profileRequest.await()
+            val defaultPortions = defaultPortionsRequest.await()
+            val portions = portionsRequest.await()
+            val error = listOf(member, profile, defaultPortions, portions).firstNotNullOfOrNull { result ->
+                result.fold({ formatError(it) }, { null })
             }
-            launch {
-                getDefaultPortionsUseCase(memberId).fold(
-                    { error -> _state.update {
-                        it.copy(isDefaultPortionsLoading = false, defaultPortionsError = formatError(error))
-                    } },
-                    { portions -> _state.update {
-                        it.copy(isDefaultPortionsLoading = false, defaultPortions = portions)
-                    } }
-                )
-            }
-            launch {
-                getMemberPortionsUseCase(GetMemberPortionsUseCase.Params(memberId, begin, end)).fold(
-                    { error -> _state.update {
-                        it.copy(isPortionsLoading = false, portionsError = formatError(error))
-                    } },
-                    { portions -> _state.update {
-                        it.copy(isPortionsLoading = false, portions = portions.sortedBy { record -> record.date })
-                    } }
+
+            _state.update {
+                it.copy(
+                    member = member.getOrNull() ?: it.member,
+                    currentUserId = profile.getOrNull()?.id ?: it.currentUserId,
+                    defaultPortions = defaultPortions.getOrNull() ?: it.defaultPortions,
+                    portions = portions.getOrNull()?.sortedBy { record -> record.date } ?: it.portions,
+                    isLoading = false,
+                    error = error
                 )
             }
         }
