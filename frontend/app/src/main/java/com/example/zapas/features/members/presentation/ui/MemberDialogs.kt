@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -19,72 +18,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.example.zapas.core.components.PreviewableAlertDialog
-import com.example.zapas.features.members.presentation.viewmodel.MemberDialog
 import com.example.zapas.features.members.presentation.viewmodel.MemberProfileState
-import com.example.zapas.features.members.presentation.viewmodel.parsePortions
-
-@Composable
-fun MemberPortionsDialog(
-    state: MemberProfileState,
-    onDismiss: () -> Unit,
-    onSave: (String) -> Unit
-) {
-    val isDefault = state.dialog == MemberDialog.DEFAULT_PORTIONS
-    val initial = if (isDefault) state.defaultPortions else state.selectedPortion?.portions
-    var value by rememberSaveable(state.dialog, state.selectedPortion?.date) {
-        mutableStateOf(initial?.toString().orEmpty())
-    }
-    MemberPortionsDialogContent(state, value, { value = it }, onDismiss, { onSave(value) })
-}
-
-@Composable
-fun MemberPortionsDialogContent(
-    state: MemberProfileState,
-    value: String,
-    onValueChange: (String) -> Unit,
-    onDismiss: () -> Unit,
-    onSave: () -> Unit
-) {
-    val isDefault = state.dialog == MemberDialog.DEFAULT_PORTIONS
-    val valid = parsePortions(value) != null
-    PreviewableAlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(if (isDefault) "Порции по умолчанию" else "Порции за ${state.selectedPortion?.date}") },
-        text = {
-            Column(
-                modifier = Modifier.verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                if (isDefault) Text("Существующие записи по датам не изменятся.")
-                OutlinedTextField(
-                    value = value,
-                    onValueChange = onValueChange,
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Количество порций") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    enabled = !state.isSaving,
-                    isError = !valid,
-                    supportingText = {
-                        Text(if (valid) "Ноль допустим" else "Введите целое неотрицательное число допустимого размера")
-                    }
-                )
-                state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-            }
-        },
-        confirmButton = {
-            Button(onClick = onSave, enabled = valid && !state.isSaving) {
-                if (state.isSaving) CircularProgressIndicator(modifier = Modifier.size(24.dp)) else Text("Сохранить")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss, enabled = !state.isSaving) { Text("Отмена") }
-        }
-    )
-}
 
 @Composable
 fun MemberProfileDialog(

@@ -1,6 +1,5 @@
 package com.example.zapas.features.members.presentation.ui
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -14,7 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -32,12 +31,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.zapas.features.members.domain.model.MemberPortion
-import com.example.zapas.features.members.presentation.viewmodel.MemberDialog
 import com.example.zapas.features.members.presentation.viewmodel.MemberProfileState
 import com.example.zapas.features.members.presentation.viewmodel.MemberProfileViewModel
 
@@ -49,15 +47,10 @@ fun MemberProfileScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     MemberProfileScreenContent(
         state, onBack, viewModel::load, viewModel::changeMonth,
-        viewModel::openDialog
+        viewModel::openProfileEditor, viewModel::changeDefaultPortions, viewModel::changePortion
     )
-    when (state.dialog) {
-        MemberDialog.PROFILE -> MemberProfileDialog(state, viewModel::dismissDialog, viewModel::saveProfile)
-        MemberDialog.DEFAULT_PORTIONS, MemberDialog.PORTION -> MemberPortionsDialog(
-            state, viewModel::dismissDialog, viewModel::savePortions
-        )
-        null -> Unit
-    }
+    if (state.showProfileDialog)
+        MemberProfileDialog(state, viewModel::dismissProfileEditor, viewModel::saveProfile)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -67,7 +60,9 @@ fun MemberProfileScreenContent(
     onBack: () -> Unit,
     onRefresh: () -> Unit,
     onChangeMonth: (Int) -> Unit = {},
-    onOpenDialog: (MemberDialog, MemberPortion?) -> Unit = { _, _ -> }
+    onEditProfile: () -> Unit = {},
+    onChangeDefaultPortions: (Int) -> Unit = {},
+    onChangePortion: (String, Int) -> Unit = { _, _ -> }
 ) {
     Scaffold(topBar = {
         TopAppBar(
@@ -90,8 +85,8 @@ fun MemberProfileScreenContent(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item {
-                if (state.isLoading) CircularProgressIndicator()
-                if (state.dialog == null) state.error?.let { MemberError(it, onRefresh) }
+                if (state.isLoading || state.isSaving) CircularProgressIndicator()
+                if (!state.showProfileDialog) state.error?.let { MemberError(it, onRefresh) }
             }
             state.member?.let { member ->
                 item {
@@ -106,7 +101,7 @@ fun MemberProfileScreenContent(
                             if (member.bio.isNotBlank()) Text(member.bio)
                             if (state.isOwnProfile == true)
                                 TextButton(
-                                    onClick = { onOpenDialog(MemberDialog.PROFILE, null) },
+                                    onClick = onEditProfile,
                                     enabled = state.canEdit && state.localProfile != null
                                 ) { Text("Редактировать профиль в комнате") }
                         }
@@ -119,12 +114,9 @@ fun MemberProfileScreenContent(
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Text("Порций по умолчанию", style = MaterialTheme.typography.titleMedium)
-                            state.defaultPortions?.let { Text(it.toString()) }
-                            if (state.isOwnProfile == true)
-                                TextButton(
-                                    onClick = { onOpenDialog(MemberDialog.DEFAULT_PORTIONS, null) },
-                                    enabled = state.canEdit && state.defaultPortions != null
-                                ) { Text("Изменить") }
+                            state.defaultPortions?.let { count ->
+                                MemberPortionCounter(count, state.isOwnProfile == true, state.canEdit, onChangeDefaultPortions)
+                            }
                         }
                     }
                 }
@@ -151,15 +143,10 @@ fun MemberProfileScreenContent(
                 items(state.portions) { record ->
                     Column {
                         ListItem(
-                            modifier = Modifier.clickable(enabled = state.canEdit, role = Role.Button) {
-                                onOpenDialog(MemberDialog.PORTION, record)
-                            },
                             headlineContent = { Text(record.date) },
                             trailingContent = {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(record.portions.toString())
-                                    if (state.isOwnProfile == true)
-                                        Icon(Icons.Default.Edit, contentDescription = "Изменить порции")
+                                MemberPortionCounter(record.portions, state.isOwnProfile == true, state.canEdit) {
+                                    onChangePortion(record.date, it)
                                 }
                             }
                         )
@@ -176,5 +163,29 @@ private fun MemberError(error: String, onRetry: () -> Unit) {
     Column {
         Text(error, color = MaterialTheme.colorScheme.error)
         TextButton(onClick = onRetry) { Text("Повторить") }
+    }
+}
+
+@Composable
+fun MemberPortionCounter(
+    count: Long,
+    showControls: Boolean,
+    enabled: Boolean,
+    onChange: (Int) -> Unit
+) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        if (showControls)
+            IconButton(
+                onClick = { onChange(-1) },
+                enabled = enabled && count > 0,
+                modifier = Modifier.semantics { contentDescription = "Уменьшить порции на 1" }
+            ) {
+                Text("−", style = MaterialTheme.typography.titleLarge)
+            }
+        Text(count.toString())
+        if (showControls)
+            IconButton(onClick = { onChange(1) }, enabled = enabled && count >= 0 && count < Long.MAX_VALUE) {
+                Icon(Icons.Default.Add, contentDescription = "Увеличить порции на 1")
+            }
     }
 }

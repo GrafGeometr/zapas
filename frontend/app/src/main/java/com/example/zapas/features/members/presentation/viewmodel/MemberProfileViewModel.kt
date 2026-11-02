@@ -31,8 +31,6 @@ import java.util.Calendar
 import java.util.Locale
 import javax.inject.Inject
 
-enum class MemberDialog { PROFILE, DEFAULT_PORTIONS, PORTION }
-
 data class MemberProfileState(
     val member: Member? = null,
     val currentUserId: String? = null,
@@ -44,8 +42,7 @@ data class MemberProfileState(
     val isLoading: Boolean = true,
     val isSaving: Boolean = false,
     val error: String? = null,
-    val dialog: MemberDialog? = null,
-    val selectedPortion: MemberPortion? = null
+    val showProfileDialog: Boolean = false
 ) {
     val isOwnProfile: Boolean?
         get() = currentUserId?.let { userId -> member?.userId?.let { it == userId } }
@@ -82,7 +79,7 @@ class MemberProfileViewModel @Inject constructor(
     }
 
     fun changeMonth(offset: Int) {
-        if (_state.value.isSaving || _state.value.dialog != null || offset !in listOf(-1, 1)) return
+        if (_state.value.isSaving || _state.value.showProfileDialog || offset !in listOf(-1, 1)) return
         val next = (period.clone() as Calendar).apply { add(Calendar.MONTH, offset) }
         if (next.get(Calendar.ERA) != 1 || next.get(Calendar.YEAR) !in 1..9999) return
         period.time = next.time
@@ -95,7 +92,7 @@ class MemberProfileViewModel @Inject constructor(
     }
 
     fun load() {
-        if (_state.value.isSaving || _state.value.dialog != null) return
+        if (_state.value.isSaving || _state.value.showProfileDialog) return
         loadJob?.cancel()
         val begin = dateFormat.format(period.time)
         val end = dateFormat.format((period.clone() as Calendar).apply {
@@ -134,48 +131,42 @@ class MemberProfileViewModel @Inject constructor(
         }
     }
 
-    fun openDialog(dialog: MemberDialog, portion: MemberPortion? = null) {
+    fun openProfileEditor() {
         val state = _state.value
-        if (!state.canEdit) return
-        if (dialog == MemberDialog.PROFILE && state.localProfile == null) return
-        if (dialog == MemberDialog.DEFAULT_PORTIONS && state.defaultPortions == null) return
-        if (dialog == MemberDialog.PORTION && (portion == null || portion !in state.portions)) return
-        _state.update { it.copy(dialog = dialog, selectedPortion = portion, error = null) }
+        if (!state.canEdit || state.localProfile == null) return
+        _state.update { it.copy(showProfileDialog = true, error = null) }
     }
 
-    fun dismissDialog() {
+    fun dismissProfileEditor() {
         if (_state.value.isSaving) return
-        _state.update { it.copy(dialog = null, selectedPortion = null, error = null) }
+        _state.update { it.copy(showProfileDialog = false, error = null) }
     }
 
-    fun savePortions(input: String) {
+    fun changeDefaultPortions(delta: Int) {
         val state = _state.value
-        if (!state.canEdit) return
-        val count = parsePortions(input)
-        if (count == null) {
-            _state.update { it.copy(error = "Введите целое неотрицательное число допустимого размера") }
-            return
-        }
-        when (state.dialog) {
-            MemberDialog.DEFAULT_PORTIONS -> save(
-                request = { setDefaultPortionsUseCase(SetDefaultPortionsUseCase.Params(memberId, count)) },
-                onSuccess = { current, result -> current.copy(defaultPortions = result) }
-            )
-            MemberDialog.PORTION -> {
-                val record = state.selectedPortion ?: return
-                save(
-                    request = { setMemberPortionUseCase(SetMemberPortionUseCase.Params(memberId, record.date, count)) },
-                    onSuccess = { current, _ -> current.copy(
-                        portions = current.portions.map { if (it.date == record.date) it.copy(portions = count) else it }
-                    ) }
-                )
-            }
-            else -> return
-        }
+        if (!state.canEdit || state.showProfileDialog) return
+        val count = adjustedPortions(state.defaultPortions ?: return, delta) ?: return
+        save(
+            request = { setDefaultPortionsUseCase(SetDefaultPortionsUseCase.Params(memberId, count)) },
+            onSuccess = { current, result -> current.copy(defaultPortions = result) }
+        )
+    }
+
+    fun changePortion(date: String, delta: Int) {
+        val state = _state.value
+        if (!state.canEdit || state.showProfileDialog) return
+        val record = state.portions.find { it.date == date } ?: return
+        val count = adjustedPortions(record.portions, delta) ?: return
+        save(
+            request = { setMemberPortionUseCase(SetMemberPortionUseCase.Params(memberId, date, count)) },
+            onSuccess = { current, _ -> current.copy(
+                portions = current.portions.map { if (it.date == date) it.copy(portions = count) else it }
+            ) }
+        )
     }
 
     fun saveProfile(displayName: String, bio: String) {
-        if (_state.value.dialog != MemberDialog.PROFILE || !_state.value.canEdit) return
+        if (!_state.value.showProfileDialog || !_state.value.canEdit) return
         if (displayName.isBlank()) {
             _state.update { it.copy(error = "Введите имя участника") }
             return
@@ -202,7 +193,7 @@ class MemberProfileViewModel @Inject constructor(
             request().fold(
                 { error -> _state.update { it.copy(isSaving = false, error = formatError(error)) } },
                 { result -> _state.update {
-                    onSuccess(it, result).copy(isSaving = false, dialog = null, selectedPortion = null, error = null)
+                    onSuccess(it, result).copy(isSaving = false, showProfileDialog = false, error = null)
                 } }
             )
         }
@@ -219,6 +210,9 @@ class MemberProfileViewModel @Inject constructor(
     }
 }
 
-internal fun parsePortions(value: String): Long? = value.trim().takeIf {
-    it.isNotEmpty() && it.all { char -> char in '0'..'9' }
-}?.toLongOrNull()
+internal fun adjustedPortions(value: Long, delta: Int): Long? = when {
+    value < 0 -> null
+    delta == -1 && value > 0 -> value - 1
+    delta == 1 && value < Long.MAX_VALUE -> value + 1
+    else -> null
+}

@@ -32,6 +32,8 @@ class MemberProfileStateProvider : PreviewParameterProvider<MemberProfileState> 
             copy(currentUserId = "other", localProfile = null),
             copy(currentUserId = null, localProfile = null),
             copy(isLoading = true),
+            copy(isSaving = true),
+            copy(defaultPortions = Long.MAX_VALUE, portions = listOf(MemberPortion("2026-11-01", Long.MAX_VALUE))),
             MemberProfileState(isLoading = false, error = "Участник не найден или недоступен"),
             MemberProfileState(isLoading = false, error = "Ошибка сети. Проверьте подключение."),
             copy(error = "Ошибка сети. Проверьте подключение."),
@@ -61,4 +63,31 @@ private fun MemberProfileThemePreview() {
     ZapasTheme {
         MemberProfileScreenContent(state = MemberPreviewSample.state, onBack = {}, onRefresh = {})
     }
+}
+
+data class MemberCounterPreviewState(val count: Long, val own: Boolean, val enabled: Boolean)
+
+class MemberCounterPreviewProvider : PreviewParameterProvider<MemberCounterPreviewState> {
+    override val values = sequenceOf(
+        MemberCounterPreviewState(0, true, true),
+        MemberCounterPreviewState(1, true, true),
+        MemberCounterPreviewState(Long.MAX_VALUE, true, true),
+        MemberCounterPreviewState(2, true, false),
+        MemberCounterPreviewState(2, false, false)
+    )
+}
+
+@Preview(showBackground = true, name = "Счётчик порций — состояния")
+@Composable
+private fun MemberCounterStatesPreview(
+    @PreviewParameter(MemberCounterPreviewProvider::class) preview: MemberCounterPreviewState
+) {
+    ZapasTheme { MemberPortionCounter(preview.count, preview.own, preview.enabled, {}) }
+}
+
+@Preview(showBackground = true, name = "Счётчик порций — тёмная тема", uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Preview(showBackground = true, name = "Счётчик порций — крупный текст", fontScale = 1.5f)
+@Composable
+private fun MemberCounterThemePreview() {
+    ZapasTheme { MemberPortionCounter(0, true, true, {}) }
 }
