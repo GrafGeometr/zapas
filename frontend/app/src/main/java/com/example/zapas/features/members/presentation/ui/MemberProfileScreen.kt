@@ -33,7 +33,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -41,8 +40,6 @@ import com.example.zapas.features.members.domain.model.MemberPortion
 import com.example.zapas.features.members.presentation.viewmodel.MemberDialog
 import com.example.zapas.features.members.presentation.viewmodel.MemberProfileState
 import com.example.zapas.features.members.presentation.viewmodel.MemberProfileViewModel
-import com.example.zapas.features.rooms.domain.model.Member
-import com.example.zapas.ui.theme.ZapasTheme
 
 @Composable
 fun MemberProfileScreen(
@@ -179,25 +176,5 @@ private fun MemberError(error: String, onRetry: () -> Unit) {
     Column {
         Text(error, color = MaterialTheme.colorScheme.error)
         TextButton(onClick = onRetry) { Text("Повторить") }
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-private fun MemberProfilePreview() {
-    ZapasTheme {
-        MemberProfileScreenContent(
-            state = MemberProfileState(
-                member = Member("Описание в комнате", "2026-11-01T00:00:00Z", "Алексей", "member", "room", "user"),
-                currentUserId = "user",
-                defaultPortions = 1,
-                portions = listOf(MemberPortion("2026-11-01", 0), MemberPortion("2026-11-02", 2)),
-                periodTitle = "ноябрь 2026",
-                hasLoadedPortions = true,
-                isLoading = false
-            ),
-            onBack = {},
-            onRefresh = {}
-        )
     }
 }

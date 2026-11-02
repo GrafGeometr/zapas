@@ -37,6 +37,18 @@ fun MemberPortionsDialog(
     var value by rememberSaveable(state.dialog, state.selectedPortion?.date) {
         mutableStateOf(initial?.toString().orEmpty())
     }
+    MemberPortionsDialogContent(state, value, { value = it }, onDismiss, { onSave(value) })
+}
+
+@Composable
+fun MemberPortionsDialogContent(
+    state: MemberProfileState,
+    value: String,
+    onValueChange: (String) -> Unit,
+    onDismiss: () -> Unit,
+    onSave: () -> Unit
+) {
+    val isDefault = state.dialog == MemberDialog.DEFAULT_PORTIONS
     val valid = parsePortions(value) != null
     PreviewableAlertDialog(
         onDismissRequest = onDismiss,
@@ -49,7 +61,7 @@ fun MemberPortionsDialog(
                 if (isDefault) Text("Существующие записи по датам не изменятся.")
                 OutlinedTextField(
                     value = value,
-                    onValueChange = { value = it },
+                    onValueChange = onValueChange,
                     modifier = Modifier.fillMaxWidth(),
                     label = { Text("Количество порций") },
                     singleLine = true,
@@ -64,7 +76,7 @@ fun MemberPortionsDialog(
             }
         },
         confirmButton = {
-            Button(onClick = { onSave(value) }, enabled = valid && !state.isSaving) {
+            Button(onClick = onSave, enabled = valid && !state.isSaving) {
                 if (state.isSaving) CircularProgressIndicator(modifier = Modifier.size(24.dp)) else Text("Сохранить")
             }
         },
@@ -86,6 +98,22 @@ fun MemberProfileDialog(
     var bio by rememberSaveable {
         mutableStateOf(state.localProfile?.bio ?: state.member?.bio.orEmpty())
     }
+    MemberProfileDialogContent(
+        state, displayName, bio, { displayName = it }, { bio = it },
+        onDismiss, { onSave(displayName, bio) }
+    )
+}
+
+@Composable
+fun MemberProfileDialogContent(
+    state: MemberProfileState,
+    displayName: String,
+    bio: String,
+    onDisplayNameChange: (String) -> Unit,
+    onBioChange: (String) -> Unit,
+    onDismiss: () -> Unit,
+    onSave: () -> Unit
+) {
     PreviewableAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Профиль в комнате") },
@@ -97,7 +125,7 @@ fun MemberProfileDialog(
                 Text("Изменения относятся только к этой комнате.")
                 OutlinedTextField(
                     value = displayName,
-                    onValueChange = { displayName = it },
+                    onValueChange = onDisplayNameChange,
                     label = { Text("Имя в комнате") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
@@ -106,7 +134,7 @@ fun MemberProfileDialog(
                 )
                 OutlinedTextField(
                     value = bio,
-                    onValueChange = { bio = it },
+                    onValueChange = onBioChange,
                     label = { Text("Описание в комнате") },
                     maxLines = 4,
                     modifier = Modifier.fillMaxWidth(),
@@ -117,7 +145,7 @@ fun MemberProfileDialog(
         },
         confirmButton = {
             Button(
-                onClick = { onSave(displayName, bio) },
+                onClick = onSave,
                 enabled = displayName.isNotBlank() && !state.isSaving
             ) {
                 if (state.isSaving) CircularProgressIndicator(modifier = Modifier.size(24.dp)) else Text("Сохранить")
