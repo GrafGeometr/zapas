@@ -76,6 +76,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.paging.compose.collectAsLazyPagingItems
 import com.example.zapas.core.components.PreviewableAlertDialog
 import com.example.zapas.core.utils.DefaultPagingSourceList
@@ -98,6 +100,7 @@ fun RoomProfileScreen(
 
     val memberPagingItems = viewModel.members.collectAsLazyPagingItems()
     val members = remember(memberPagingItems) { DefaultPagingSourceList(memberPagingItems) }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { memberPagingItems.refresh() }
 
     LaunchedEffect(state.isDeleted) {
         if (state.isDeleted) {
