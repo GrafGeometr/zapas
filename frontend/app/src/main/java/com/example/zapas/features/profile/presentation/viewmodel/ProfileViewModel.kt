@@ -45,8 +45,9 @@ class ProfileViewModel @Inject constructor(
     }
 
     fun loadProfile() {
+        if (_state.value.isLoading) return
+        _state.update { it.copy(isLoading = true, error = null) }
         viewModelScope.launch {
-            _state.update { it.copy(isLoading = true, error = null) }
             getProfileUseCase().fold(
                 { error ->
                     _state.update { it.copy(isLoading = false, error = formatError(error)) }
@@ -59,20 +60,24 @@ class ProfileViewModel @Inject constructor(
     }
 
     fun toggleEdit() {
+        if (_state.value.isLoading) return
         _state.update { it.copy(isEditing = !it.isEditing, updateSuccess = false) }
     }
 
     fun setShowPasswordDialog(show: Boolean) {
-        _state.update { it.copy(showPasswordDialog = show) }
+        if (_state.value.isLoading) return
+        _state.update { it.copy(showPasswordDialog = show, error = null) }
     }
 
     fun setShowDeleteDialog(show: Boolean) {
-        _state.update { it.copy(showDeleteDialog = show) }
+        if (_state.value.isLoading) return
+        _state.update { it.copy(showDeleteDialog = show, error = null) }
     }
 
     fun updateProfile(displayName: String, bio: String) {
+        if (_state.value.isLoading) return
+        _state.update { it.copy(isLoading = true, error = null) }
         viewModelScope.launch {
-            _state.update { it.copy(isLoading = true, error = null) }
             updateProfileUseCase(
                 UpdateProfileUseCase.Params(
                     displayName = displayName,
@@ -98,8 +103,9 @@ class ProfileViewModel @Inject constructor(
     }
 
     fun changePassword(oldPasswd: String, newPasswd: String) {
+        if (_state.value.isLoading) return
+        _state.update { it.copy(isLoading = true, error = null, passwordChangeSuccess = false) }
         viewModelScope.launch {
-            _state.update { it.copy(isLoading = true, error = null, passwordChangeSuccess = false) }
             changePasswordUseCase(
                 ChangePasswordUseCase.Params(oldPasswd, newPasswd)
             ).fold(
@@ -107,22 +113,23 @@ class ProfileViewModel @Inject constructor(
                     _state.update { it.copy(isLoading = false, error = formatError(error)) }
                 },
                 {
-                    _state.update { it.copy(isLoading = false, passwordChangeSuccess = true) }
+                    _state.update { it.copy(isLoading = false, passwordChangeSuccess = true, showPasswordDialog = false) }
                 }
             )
         }
     }
 
     fun deleteAccount(onDeleted: () -> Unit) {
+        if (_state.value.isLoading) return
         val userId = _state.value.user?.id ?: return
+        _state.update { it.copy(isLoading = true, error = null) }
         viewModelScope.launch {
-            _state.update { it.copy(isLoading = true, error = null) }
             deleteUserUseCase(userId).fold(
                 { error ->
                     _state.update { it.copy(isLoading = false, error = formatError(error)) }
                 },
                 {
-                    _state.update { it.copy(isLoading = false, deleteSuccess = true) }
+                    _state.update { it.copy(isLoading = false, deleteSuccess = true, showDeleteDialog = false) }
                     logout(onDeleted)
                 }
             )

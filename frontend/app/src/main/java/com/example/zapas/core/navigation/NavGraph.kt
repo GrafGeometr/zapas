@@ -89,7 +89,9 @@ fun ZapasNavGraph(
                     navController.popBackStack()
                 },
                 onSuccess = { roomId ->
-                    navController.navigate(RoomProfile(roomId))
+                    navController.navigate(RoomProfile(roomId)) {
+                        popUpTo<CreateRoom> { inclusive = true }
+                    }
                 }
             )
         }
