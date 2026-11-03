@@ -12,6 +12,8 @@ import com.example.zapas.features.auth.domain.usecase.RegisterParams
 import com.example.zapas.features.auth.domain.usecase.RegisterUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -31,6 +33,21 @@ class AuthViewModel @Inject constructor(
     // Состояние для регистрации
     private val _registerState = MutableStateFlow<RegisterState>(RegisterState.Idle)
     val registerState: StateFlow<RegisterState> = _registerState
+
+    private val _registrationCredentials = MutableStateFlow(RegistrationCredentials())
+    val registrationCredentials = _registrationCredentials.asStateFlow()
+
+    fun setRegistrationPassword(password: String) {
+        _registrationCredentials.update { it.copy(password = password) }
+    }
+
+    fun setRegistrationConfirmation(confirmation: String) {
+        _registrationCredentials.update { it.copy(confirmation = confirmation) }
+    }
+
+    fun clearRegistrationCredentials() {
+        _registrationCredentials.value = RegistrationCredentials()
+    }
 
     fun login(username: String, password: String) {
         viewModelScope.launch {
@@ -91,3 +108,4 @@ sealed class RegisterState {
     object Success : RegisterState()
     data class Error(val message: String) : RegisterState()
 }
+data class RegistrationCredentials(val password: String = "", val confirmation: String = "")

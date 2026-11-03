@@ -50,6 +50,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -121,6 +122,7 @@ fun RoomProfileScreen(
 
     RoomProfileScreenContent(
         members = members,
+        snackbarHostState = snackbarHostState,
         state = state,
         onBack = onBack,
         onRefresh = viewModel::load,
@@ -179,11 +181,13 @@ fun RoomProfileScreenContent(
     onShowTimingsDialog: () -> Unit,
     onGenerateInvite: () -> Unit,
     onShowDeleteDialog: () -> Unit,
-    onNavigateToMember: (String) -> Unit = {}
+    onNavigateToMember: (String) -> Unit = {},
+    snackbarHostState: SnackbarHostState = remember { SnackbarHostState() }
 ) {
     var showMenu by remember { mutableStateOf(false) }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text("Профиль комнаты") },

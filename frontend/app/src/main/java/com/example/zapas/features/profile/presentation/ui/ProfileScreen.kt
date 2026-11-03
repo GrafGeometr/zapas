@@ -43,13 +43,11 @@ fun ProfileScreen(
         onDismissPasswordDialog = { viewModel.setShowPasswordDialog(false) },
         onChangePassword = { old, new ->
             viewModel.changePassword(old, new)
-            viewModel.setShowPasswordDialog(false)
         },
         onShowDeleteDialog = { viewModel.setShowDeleteDialog(true) },
         onDismissDeleteDialog = { viewModel.setShowDeleteDialog(false) },
         onDeleteConfirm = {
             viewModel.deleteAccount(onLogout)
-            viewModel.setShowDeleteDialog(false)
         })
 
     ProfileRootUI(state = state, actions = actions)
@@ -61,8 +59,9 @@ fun ProfileRootUI(
     state: ProfileState, actions: ProfileUiActions
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
-    LaunchedEffect(state.error) {
-        state.error?.let { snackbarHostState.showSnackbar(it) }
+    LaunchedEffect(state.error, state.showPasswordDialog, state.showDeleteDialog) {
+        if (!state.showPasswordDialog && !state.showDeleteDialog)
+            state.error?.let { snackbarHostState.showSnackbar(it) }
     }
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -81,7 +80,7 @@ fun ProfileRootUI(
 
                 state.user != null -> {
                     ProfileScreenContent(
-                        user = state.user, isEditing = state.isEditing, actions = actions
+                        user = state.user, isEditing = state.isEditing, actions = actions, isLoading = state.isLoading
                     )
                 }
 
@@ -96,13 +95,15 @@ fun ProfileRootUI(
 
     if (state.showPasswordDialog) {
         ChangePasswordDialog(
-            onDismiss = actions.onDismissPasswordDialog, onConfirm = actions.onChangePassword
+            onDismiss = actions.onDismissPasswordDialog, onConfirm = actions.onChangePassword,
+            isLoading = state.isLoading, error = state.error
         )
     }
 
     if (state.showDeleteDialog) {
         DeleteAccountDialog(
-            onDismiss = actions.onDismissDeleteDialog, onConfirm = actions.onDeleteConfirm
+            onDismiss = actions.onDismissDeleteDialog, onConfirm = actions.onDeleteConfirm,
+            isLoading = state.isLoading, error = state.error
         )
     }
 }
@@ -130,7 +131,7 @@ private fun ErrorMessage(error: String, modifier: Modifier = Modifier) {
 
 @Composable
 fun ProfileScreenContent(
-    user: User, isEditing: Boolean, actions: ProfileUiActions
+    user: User, isEditing: Boolean, actions: ProfileUiActions, isLoading: Boolean = false
 ) {
     Column(
         modifier = Modifier
@@ -144,7 +145,7 @@ fun ProfileScreenContent(
         Spacer(modifier = Modifier.height(16.dp))
 
         if (isEditing) {
-            ProfileEditSection(user, actions)
+            ProfileEditSection(user, actions, isLoading)
         } else {
             ProfileInfoSection(user, actions)
         }
@@ -155,7 +156,7 @@ fun ProfileScreenContent(
 
 //        Emails()
 
-        ProfileActionsSection(actions)
+        ProfileActionsSection(actions, isLoading)
     }
 }
 
@@ -170,7 +171,7 @@ private fun ProfileAvatar() {
 }
 
 @Composable
-private fun ProfileEditSection(user: User, actions: ProfileUiActions) {
+private fun ProfileEditSection(user: User, actions: ProfileUiActions, isLoading: Boolean) {
     var displayName by remember(user.displayName) { mutableStateOf(user.displayName) }
     var bio by remember(user.bio) { mutableStateOf(user.bio) }
 
@@ -178,24 +179,28 @@ private fun ProfileEditSection(user: User, actions: ProfileUiActions) {
         value = displayName,
         onValueChange = { displayName = it },
         label = { Text("Имя") },
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth(),
+        enabled = !isLoading
     )
     Spacer(modifier = Modifier.height(8.dp))
     OutlinedTextField(
         value = bio,
         onValueChange = { bio = it },
         label = { Text("О себе") },
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth(),
+        enabled = !isLoading
     )
     Spacer(modifier = Modifier.height(16.dp))
     Button(
-        onClick = { actions.onSave(displayName, bio) }, modifier = Modifier.fillMaxWidth()
+        onClick = { actions.onSave(displayName, bio) },
+        modifier = Modifier.fillMaxWidth(),
+        enabled = !isLoading
     ) {
         Icon(Icons.Default.Check, contentDescription = null)
         Spacer(modifier = Modifier.width(8.dp))
         Text("Сохранить")
     }
-    TextButton(onClick = actions.onToggleEdit) {
+    TextButton(onClick = actions.onToggleEdit, enabled = !isLoading) {
         Text("Отмена")
     }
 }
@@ -235,9 +240,9 @@ private fun ProfileInfoSection(user: User, actions: ProfileUiActions) {
 }
 
 @Composable
-private fun ProfileActionsSection(actions: ProfileUiActions) {
+private fun ProfileActionsSection(actions: ProfileUiActions, isLoading: Boolean) {
     OutlinedButton(
-        onClick = actions.onShowPasswordDialog, modifier = Modifier.fillMaxWidth()
+        onClick = actions.onShowPasswordDialog, enabled = !isLoading, modifier = Modifier.fillMaxWidth()
     ) {
         Icon(Icons.Default.Lock, contentDescription = null)
         Spacer(modifier = Modifier.width(8.dp))
@@ -248,6 +253,7 @@ private fun ProfileActionsSection(actions: ProfileUiActions) {
 
     OutlinedButton(
         onClick = actions.onShowDeleteDialog,
+        enabled = !isLoading,
         modifier = Modifier.fillMaxWidth(),
         colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
     ) {
@@ -259,20 +265,22 @@ private fun ProfileActionsSection(actions: ProfileUiActions) {
 
 @Composable
 fun ChangePasswordDialog(
-    onDismiss: () -> Unit, onConfirm: (String, String) -> Unit
+    onDismiss: () -> Unit, onConfirm: (String, String) -> Unit,
+    isLoading: Boolean = false, error: String? = null
 ) {
     var oldPass by remember { mutableStateOf("") }
     var newPass by remember { mutableStateOf("") }
     var confirmPass by remember { mutableStateOf("") }
 
-    PreviewableAlertDialog(onDismissRequest = onDismiss, title = { Text("Смена пароля") }, text = {
+    PreviewableAlertDialog(onDismissRequest = { if (!isLoading) onDismiss() }, title = { Text("Смена пароля") }, text = {
         Column {
             OutlinedTextField(
                 value = oldPass,
                 onValueChange = { oldPass = it },
                 label = { Text("Старый пароль") },
                 visualTransformation = PasswordVisualTransformation(),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isLoading
             )
             Spacer(modifier = Modifier.height(8.dp))
             OutlinedTextField(
@@ -280,7 +288,8 @@ fun ChangePasswordDialog(
                 onValueChange = { newPass = it },
                 label = { Text("Новый пароль") },
                 visualTransformation = PasswordVisualTransformation(),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isLoading
             )
             Spacer(modifier = Modifier.height(8.dp))
             OutlinedTextField(
@@ -288,18 +297,20 @@ fun ChangePasswordDialog(
                 onValueChange = { confirmPass = it },
                 label = { Text("Подтвердите новый пароль") },
                 visualTransformation = PasswordVisualTransformation(),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isLoading
             )
+            error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         }
     }, confirmButton = {
         Button(
             onClick = { onConfirm(oldPass, newPass) },
-            enabled = oldPass.isNotBlank() && newPass.isNotBlank() && newPass == confirmPass
+            enabled = !isLoading && oldPass.isNotBlank() && newPass.isNotBlank() && newPass == confirmPass
         ) {
-            Text("Сменить")
+            if (isLoading) CircularProgressIndicator(modifier = Modifier.size(24.dp)) else Text("Сменить")
         }
     }, dismissButton = {
-        TextButton(onClick = onDismiss) {
+        TextButton(onClick = onDismiss, enabled = !isLoading) {
             Text("Отмена")
         }
     })
@@ -307,22 +318,29 @@ fun ChangePasswordDialog(
 
 @Composable
 fun DeleteAccountDialog(
-    onDismiss: () -> Unit, onConfirm: () -> Unit
+    onDismiss: () -> Unit, onConfirm: () -> Unit,
+    isLoading: Boolean = false, error: String? = null
 ) {
     PreviewableAlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { if (!isLoading) onDismiss() },
         title = { Text("Удалить аккаунт?") },
-        text = { Text("Это действие необратимо. Все ваши данные будут удалены.") },
+        text = {
+            Column {
+                Text("Это действие необратимо. Все ваши данные будут удалены.")
+                error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+            }
+        },
         confirmButton = {
             TextButton(
                 onClick = onConfirm,
+                enabled = !isLoading,
                 colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
             ) {
-                Text("Удалить")
+                if (isLoading) CircularProgressIndicator(modifier = Modifier.size(24.dp)) else Text("Удалить")
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            TextButton(onClick = onDismiss, enabled = !isLoading) {
                 Text("Отмена")
             }
         })
@@ -348,6 +366,14 @@ class ProfileStateProvider : PreviewParameterProvider<ProfileState> {
             user = mockUser, isLoading = false, isEditing = true
         ), ProfileState(
             user = mockUser, showPasswordDialog = true
+        ), ProfileState(
+            user = mockUser, showPasswordDialog = true, isLoading = true
+        ), ProfileState(
+            user = mockUser, showPasswordDialog = true, error = "Неверный старый пароль"
+        ), ProfileState(
+            user = mockUser, showDeleteDialog = true, isLoading = true
+        ), ProfileState(
+            user = mockUser, showDeleteDialog = true, error = "Сервер не поддерживает удаление аккаунта"
         ), ProfileState(
             isLoading = true
         ), ProfileState(
